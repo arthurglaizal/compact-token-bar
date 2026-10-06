@@ -101,9 +101,13 @@ export const register: Register = on => {
                         <Box width={0} flexGrow={1} height={1} overflow="hidden">
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
-                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                          <Text color="black" backgroundColor="white" wrap="truncate-end">
-                            {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }} flexDirection="row" alignItems="center">
+                          {/* The label in soft greys, after the segment's own swatch. */}
+                          <Svg source={swatchSvg(r, c.slice)} alt=" " />
+                          <Text wrap="truncate-end">
+                            <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
+                            <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
+                            <Text color={TIP.dim}>{` ${share(c.slice.tokens, r.window)}`}</Text>
                           </Text>
                         </Box>
                       </Box>
@@ -116,8 +120,15 @@ export const register: Register = on => {
                       <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                     </Box>
                     <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-                      <Text color="black" backgroundColor="white" wrap="truncate-end">
-                        {` ${r.limits.map(l => `${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)}`).join('   ')} `}
+                      <Text wrap="truncate-end">
+                        {r.limits.map((l, i) => (
+                          <Text>
+                            {i > 0 && <Text color={TIP.dim}>{'   '}</Text>}
+                            <Text color={TIP.name}>{`${LIMITS[l.kind].label} `}</Text>
+                            <Text color={TIP.figure} bold>{`${l.percent}%`}</Text>
+                            <Text color={TIP.dim}>{`${resets(l.resetsAt, now)}`}</Text>
+                          </Text>
+                        ))}
                       </Text>
                     </Box>
                   </Box>
@@ -239,6 +250,7 @@ const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
+const TIP = { name: '#b9b9be', figure: '#e2e2e6', dim: '#7d7d83' } // the tooltips' soft greys, on the app's dark card
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
 
 // "#rrggbb" mixed with the dark of the card, t in 0..1 of the way to it.
