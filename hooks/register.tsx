@@ -231,7 +231,8 @@ const PX_PER_COLUMN = 8.4
 const FONT = 11
 const TITLE_FONT = 13 // the title a little larger than the figures
 const ROW = 20 // the card's one line: the title, the bar, the figures and the chevron
-const BAR_HEIGHT = 15 // a multiple of the dots' 5 px step, so no row of dots is cut
+const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
+const DOT_STEP = 7.5 // airy dots: two rows across the bar
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
@@ -257,7 +258,7 @@ export function pattern(r: Reading, s: Slice, id: string, y = 0) {
   }
   if (s.name === 'messages') {
     // Whole dots only: the tile starts where the shape does, and the shape is a whole number of tiles tall.
-    return { def: `<pattern id="${id}" x="0" y="${y}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${MESSAGES.ground}"/><circle cx="2.5" cy="2.5" r="1.2" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
+    return { def: `<pattern id="${id}" x="0" y="${y}" width="${DOT_STEP}" height="${DOT_STEP}" patternUnits="userSpaceOnUse"><rect width="${DOT_STEP}" height="${DOT_STEP}" fill="${MESSAGES.ground}"/><circle cx="${DOT_STEP / 2}" cy="${DOT_STEP / 2}" r="1.2" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
   }
   const angles = [45, 135, 0, 90]
   const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
