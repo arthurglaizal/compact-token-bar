@@ -1,8 +1,6 @@
-<!-- Demo image: add public/compact-token-bar.png (or .gif) and uncomment.
 <p align="center">
-  <img src="public/compact-token-bar.png" alt="Compact Token Bar above the Claude Code prompt" width="100%">
+  <img src="public/compact-token-bar.gif" alt="Compact Token Bar demo: the context bar above the Claude Code prompt" width="100%">
 </p>
--->
 
 # Compact Token Bar
 
@@ -88,7 +86,11 @@ compact-token-bar/
 │   ├── hooks.json
 │   └── register.tsx
 ├── types/index.d.ts
-└── tests/compact-token-bar.test.tsx
+├── tests/compact-token-bar.test.tsx
+└── public/
+    ├── compact-token-bar.gif
+    ├── compact-token-bar.mp4
+    └── compact-token-bar.png
 ```
 
 Run the checks with `claude plugin validate .` and `claude plugin test .`.
