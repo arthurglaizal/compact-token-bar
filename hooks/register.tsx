@@ -85,6 +85,21 @@ export const register: Register = on => {
       const col = (px: number) => Math.round(px / PX_PER_COLUMN)
       const barCols = Math.max(1, col(at.barWidth))
       let from = 0
+      // A button of the card: a stroked icon in the text's grey, centered in its own box, an empty button over
+      // the whole box so the hover area sits right around the icon, and a short tooltip.
+      const iconButton = (b: { key: string; icon: string; tip: string; press: () => void }) => (
+        <Box key={`${b.key}-box`} width={2} height={1} justifyContent="center" alignItems="center">
+          <Svg source={b.icon} alt={b.tip} width={12} height={12} />
+          <Box position="absolute" top={0} left={0} width={2} height={1}>
+            <Button key={b.key} plain onPress={b.press}>
+              {'\u00A0\u00A0'}
+            </Button>
+          </Box>
+          <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+            <Text color={TIP.name} wrap="truncate-end">{b.tip}</Text>
+          </Box>
+        </Box>
+      )
       return (
         <Box flexDirection="column">
           <Box flexDirection="column" paddingX={1}>
@@ -103,7 +118,7 @@ export const register: Register = on => {
                         </Box>
                         <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }} flexDirection="row" alignItems="center">
                           {/* The label in soft greys, after the segment's own swatch. */}
-                          <Svg source={swatchSvg(r, c.slice)} alt=" " />
+                          <Svg source={swatchSvg(r, c.slice)} alt=" " width={12} height={12} />
                           <Text wrap="truncate-end">
                             <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
                             <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
@@ -133,22 +148,17 @@ export const register: Register = on => {
                     </Box>
                   </Box>
                 )}
-              </Box>
-              {/* Two buttons of one design: a stroked icon in the text's grey, centered in its own box, and an
-                  empty button over the whole box, so the hover area sits right around the icon. */}
-              {[
-                { key: 'toggle-legend', icon: icon(open ? 'up' : 'down'), alt: open ? 'Fold the legend' : 'Open the legend', press: () => void update($, isExpanded, v => !v) },
-                { key: 'close', icon: icon('close'), alt: 'Close', press: () => void hide($) },
-              ].map(b => (
-                <Box key={`${b.key}-box`} marginLeft={1} width={2} height={1} justifyContent="center" alignItems="center">
-                  <Svg source={b.icon} alt={b.alt} />
-                  <Box position="absolute" top={0} left={0} width={2} height={1}>
-                    <Button key={b.key} plain onPress={b.press}>
-                      {'\u00A0\u00A0'}
-                    </Button>
-                  </Box>
+                {/* Next to the percentage, in the room the picture leaves for it. */}
+                <Box position="absolute" top={0} left={Math.max(0, col(at.compactX) - 1)}>
+                  {iconButton({ key: 'compact', icon: icon('compact'), tip: 'Compact the conversation now', press: () => void compactNow($) })}
                 </Box>
-              ))}
+              </Box>
+              <Box marginLeft={1}>
+                {iconButton({ key: 'toggle-legend', icon: icon(open ? 'up' : 'down'), tip: open ? 'Hide details' : 'Show details', press: () => void update($, isExpanded, v => !v) })}
+              </Box>
+              <Box marginLeft={1}>
+                {iconButton({ key: 'close', icon: icon('close'), tip: 'Close (/compact-token-bar brings it back)', press: () => void hide($) })}
+              </Box>
             </Box>
           </Box>
           {rest}
@@ -248,6 +258,7 @@ const TITLE_FONT = 13 // the title a little larger than the figures
 const ROW = 20 // the card's one line: the title, the bar and the figures
 const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
+const COMPACT_ROOM = 30 // the gap after the percentage, where the compact button sits
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const TIP = { name: '#b9b9be', figure: '#e2e2e6', dim: '#7d7d83' } // the tooltips' soft greys, on the app's dark card
@@ -316,10 +327,11 @@ export function fill(r: Reading) {
   return { head: `${tokens(r.total)} of ${tokens(limit)}`, percent: Math.round(level * 100), level }
 }
 
-// The card's two button icons, 12 px, stroked in the text's grey: the chevron of the person's own drawing
+// The card's button icons, 12 px, stroked in the text's grey: the chevron of the person's own drawing
 // (a 24 grid, scaled by half) pointing down to open and up to fold, and a cross of the same stroke.
-export function icon(kind: 'down' | 'up' | 'close') {
-  const d = { down: 'm4 9l8 8l8-8', up: 'm4 15l8-8l8 8', close: 'M6 6l12 12M18 6L6 18' }[kind]
+export function icon(kind: 'down' | 'up' | 'close' | 'compact') {
+  // compact: two arrows pressing toward a middle line, the window being folded down.
+  const d = { down: 'm4 9l8 8l8-8', up: 'm4 15l8-8l8 8', close: 'M6 6l12 12M18 6L6 18', compact: 'M12 2v6m-3-3l3 3l3-3M12 22v-6m-3 3l3-3l3 3M4 12h16' }[kind]
   return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path d="${d}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 }
 
@@ -330,9 +342,10 @@ function figures(r: Reading) {
   const context = [
     { text: head, gap: 0 },
     { text: `${percent}%`, gap: 12, color: heat(level) },
+    { text: '', gap: COMPACT_ROOM }, // where the compact button sits
   ]
   const limits = r.limits.length === 0 ? [] : [
-    { text: '│', gap: 12 },
+    { text: '│', gap: 0 },
     { text: 'limit', gap: 8 },
     ...r.limits.map(l => ({ text: `${l.percent}%`, gap: 10, color: heat(l.percent / 100) })), // which is which: the hover says
   ]
@@ -346,11 +359,12 @@ const spanWidth = (ss: { text: string; gap: number }[]) => ss.reduce((w, x) => w
 export function layout(r: Reading, width: number) {
   const { context, limits } = figures(r)
   const figuresEnd = width - 2
+  const compactX = figuresEnd - spanWidth(limits) - COMPACT_ROOM / 2 // the middle of the room after the percent
   const limitsWidth = spanWidth(limits)
   const figuresWidth = spanWidth(context) + limitsWidth
   const barX = 'Context'.length * CHAR_WIDTH * (TITLE_FONT / FONT) + 14
   const barWidth = Math.max(40, figuresEnd - figuresWidth - 16 - barX)
-  return { barX, barWidth, figuresEnd, limitsWidth }
+  return { barX, barWidth, figuresEnd, limitsWidth, compactX }
 }
 
 // The desktop card as one SVG `width` pixels wide: one line with the title, the bar, the figures and the
@@ -419,6 +433,24 @@ export function swatchSvg(r: Reading, s: Slice) {
   const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, `s${r.slices.indexOf(s)}`) // ids unique per slice, should two swatches ever share a page
   const body = s.kind === 'free' ? `<rect x="0" y="5.5" width="12" height="1" fill="${FREE}"/>` : `<rect width="12" height="12" fill="${p.fill}"/>`
   return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><defs>${p.def}</defs>${body}</svg>`
+}
+
+// The compact button: compacts the conversation as /compact does. Between turns only; the engine refuses it
+// while a turn runs, and this plugin's own session.compact hook does not see its own call, so it refreshes.
+async function compactNow($: EngineInterface) {
+  const say = (text: string) => {
+    try {
+      void $.ui.toast(text)
+    } catch {}
+  }
+  say('Compacting the conversation…')
+  try {
+    const done = await $.session.compact()
+    if (done && 'skip' in done && done.skip) return say('Compaction was skipped')
+  } catch {
+    return say('Compaction runs between turns: try again once Claude is done')
+  }
+  await refresh($).catch(() => {})
 }
 
 // The close button: hides the bar as /compact-token-bar does, and keeps the choice.

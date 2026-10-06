@@ -101,6 +101,7 @@ describe('compact-token-bar', () => {
     expect(card).not.toContain('<path') // the buttons sit beside the picture, not in it
     expect(icon('down')).toContain('d="m4 9l8 8l8-8"') // the person's chevron
     expect(icon('close')).toContain('stroke="#8b8b90"') // the cross in the same grey
+    expect(layout(r, 700).compactX).toBeGreaterThan(layout(r, 700).barX + layout(r, 700).barWidth) // the compact button sits after the bar, by the percentage
     expect(card).toContain('>Context</text>')
     expect(card).toContain('204k of 950k') // against the compaction point, the real limit
     expect(card).not.toContain('compacts at')
@@ -154,9 +155,24 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: ' messages ' })).toBeDefined() // the label of a segment, over the picture
     expect(await band.find({ type: 'Text', text: '186k' })).toBeDefined()
     expect(await band.find({ type: 'Text', text: 'Session limit (5 h) ' })).toBeDefined() // the limits' label
+    expect(await band.find({ type: 'Text', text: 'Compact the conversation now' })).toBeDefined() // the buttons' tooltips
+    expect(await band.find({ type: 'Text', text: 'Show details' })).toBeDefined()
     // Opened, the legend is drawn in the same picture, each swatch with the bar's own pattern.
     await band.press({ key: 'toggle-legend' })
     expect(await band.find({ type: 'Svg' })).toBeDefined()
+    await band.unmount()
+  })
+
+  test('the compact button compacts the conversation', async ($, on) => {
+    engine(on)
+    const compacted: unknown[] = []
+    on('session.compact', (_$: any, e: any) => (compacted.push(e), { messages: [] }))
+    on('ui.toast', () => ({ value: undefined }))
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
+    await band.press({ key: 'compact' })
+    expect(compacted.length).toBe(1)
     await band.unmount()
   })
 

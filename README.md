@@ -11,6 +11,7 @@ Plugin : `compact-token-bar`. Commande : `/compact-token-bar` (affiche ou masque
 - Pas de contour ; titre « Context » un peu plus grand que les chiffres, en gris léger. Textes en anglais (`Context`, `compacts at`, `limit`).
 - Légende détaillée repliée par défaut. Le chevron (trait fin, vers le bas fermé, vers le haut ouvert) l'ouvre ou la ferme ; la croix est du même trait et du même gris, et la zone de survol est centrée sur chaque icône. La croix `✕` en haut à droite masque la carte ; `/compact-token-bar` la réaffiche.
 - Limites d'abonnement dans l'en-tête, après un séparateur `│ limite` : les deux pourcentages seuls (session 5 h, puis semaine) ; le survol dit lequel est lequel, en pourcentage. Gris tant que tout va bien, orange dès 70 %, rouge dès 90 %. Même règle pour le pourcentage de contexte. Le survol donne l'info complète, avec le temps avant la remise à zéro. Rien ne s'affiche hors abonnement.
+- Bouton de compactage à côté du pourcentage (deux flèches qui se rejoignent) : lance la même compaction que `/compact`, entre deux tours. Chaque bouton a son infobulle (compacter, afficher le détail, fermer).
 
 ## Tester
 
