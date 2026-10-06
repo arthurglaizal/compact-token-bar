@@ -6,7 +6,7 @@ Plugin : `compact-token-bar`. Commande : `/compact-token-bar` (affiche ou masque
 
 ## Changements par rapport à `context-bar`
 
-- Échelle de couleurs neutre (un dégradé ardoise, du foncé au clair) au lieu de l'arc-en-ciel. `messages` est un bloc de points discrets `⠪` sur fond gris, sans accent de couleur.
+- Échelle de couleurs neutre (un dégradé ardoise, du foncé au clair) au lieu de l'arc-en-ciel.
 - Barre plus basse qu'une ligne de texte : blocs pleins bas `▆` pour les catégories, points `⠿` pour `messages`, bande basse `▃` pour le tampon de compactage. Les teintes alternent clair et foncé pour que les voisins se distinguent.
 - Survol d'un segment : son nom, ses tokens et son pourcentage s'affichent.
 - Légende détaillée repliée par défaut. Le chevron en bout de frise l'ouvre (`▾`) ou la ferme (`▴`). La croix `×` en haut à droite masque la carte ; `/compact-token-bar` la réaffiche.
