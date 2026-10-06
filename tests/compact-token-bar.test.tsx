@@ -49,7 +49,7 @@ function engine(on: any, store: Record<string, unknown> = {}) {
 
 const settle = () => new Promise(done => (globalThis as any).setTimeout(done, 20)) // the first refresh runs in the background
 
-describe('compact-claude-token', () => {
+describe('compact-token-bar', () => {
   test('helpers', () => {
     expect(tokens(3_400)).toBe('3.4k')
     expect(tokens(186_000)).toBe('186k')
@@ -91,7 +91,7 @@ describe('compact-claude-token', () => {
     await settle()
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
-    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: / 20% / })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
@@ -104,7 +104,7 @@ describe('compact-claude-token', () => {
     engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     await band.press({ key: 'toggle-legend' })
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^186k$/ })).toBeDefined()
@@ -140,13 +140,13 @@ describe('compact-claude-token', () => {
     await settle()
     expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
-    let band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    let band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
 
     expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
-    band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
     await band.unmount()
   })
@@ -155,7 +155,7 @@ describe('compact-claude-token', () => {
     engine(on, { isHidden: true })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
   })

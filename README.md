@@ -2,7 +2,7 @@
 
 Mod Claude Code privé, basé sur `context-bar` de [hamzafer/claude-code-mods](https://github.com/hamzafer/claude-code-mods) (licence MIT, voir `LICENSE`).
 
-Plugin : `compact-claude-token`. Commande : `/compact-token-bar` (affiche ou masque la barre).
+Plugin : `compact-token-bar`. Commande : `/compact-token-bar` (affiche ou masque la barre).
 
 ## Changements par rapport à `context-bar`
 

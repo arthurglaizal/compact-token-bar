@@ -21,9 +21,9 @@ const BUFFER = '#808080'
 const GLYPH = { used: '█', free: '─', buffer: '░' } as const
 
 // Held by the host, so the bar survives a hot reload of this file.
-const reading = atom({ plugin: 'compact-claude-token', key: 'reading' } as const, null as Reading | null)
-const isHidden = atom({ plugin: 'compact-claude-token', key: 'isHidden' } as const, false)
-const isExpanded = atom({ plugin: 'compact-claude-token', key: 'isExpanded' } as const, false)
+const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
+const isHidden = atom({ plugin: 'compact-token-bar', key: 'isHidden' } as const, false)
+const isExpanded = atom({ plugin: 'compact-token-bar', key: 'isExpanded' } as const, false)
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
