@@ -6,5 +6,16 @@
     "name": "Arthur Glaizal",
     "url": "https://github.com/arthurglaizal"
   },
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "homepage": "https://github.com/arthurglaizal/compact-token-bar",
+  "repository": "https://github.com/arthurglaizal/compact-token-bar",
+  "license": "MIT",
+  "keywords": [
+    "context",
+    "tokens",
+    "compact",
+    "rate-limits",
+    "status",
+    "mod"
+  ]
 }
