@@ -122,11 +122,13 @@ export const register: Register = on => {
                         <Box width={0} flexGrow={1} height={1} overflow="hidden">
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
-                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                          {/* The label in soft greys, after a reminder of the segment's pattern. */}
+                        {/* The label in soft greys, after the segment's own pattern, the very drawing of the bar and
+                            the legend. A picture inside a hidden box is never drawn, so the box stays shown, parked
+                            far above the band where it is clipped, and the hover brings it down. */}
+                        <Box position="absolute" top={-60} {...(onRight ? { right: 0 } : { left: 0 })} hover={{ top: 1 }} flexDirection="row" alignItems="center">
+                          <Svg source={swatchSvg(r, c.slice)} alt=" " width={SWATCH.width} height={SWATCH.height} />
                           <Text wrap="truncate-end">
-                            <Text color={swatchColor(c.slice)}>{`${swatchGlyph(r, c.slice)} `}</Text>
-                            <Text color={TIP.name}>{`${c.slice.name} `}</Text>
+                            <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
                             <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
                             <Text color={TIP.dim}>{` ${share(c.slice.tokens, r.window)}`}</Text>
                           </Text>
@@ -266,6 +268,7 @@ const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
+const SWATCH = { width: 24, height: BAR_HEIGHT } // a strip of the bar at its own scale, for the tooltips
 const TIP = { name: '#b9b9be', figure: '#e2e2e6', dim: '#7d7d83' } // the tooltips' soft greys, on the app's dark card
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
 
@@ -335,8 +338,8 @@ export function fill(r: Reading) {
 // The card's button icons, 12 px, stroked in the text's grey: the chevron of the person's own drawing
 // (a 24 grid, scaled by half) pointing down to open and up to fold, and a cross of the same stroke.
 export function icon(kind: 'down' | 'up' | 'close' | 'compact') {
-  // compact: two arrows pressing toward a middle line, the window being folded down.
-  const d = { down: 'm4 9l8 8l8-8', up: 'm4 15l8-8l8 8', close: 'M6 6l12 12M18 6L6 18', compact: 'M12 2v6m-3-3l3 3l3-3M12 22v-6m-3 3l3-3l3 3M4 12h16' }[kind]
+  // compact: two chevrons closing on a line, the conversation folded down.
+  const d = { down: 'm4 9l8 8l8-8', up: 'm4 15l8-8l8 8', close: 'M6 6l12 12M18 6L6 18', compact: 'M7 3l5 5l5-5M7 21l5-5l5 5M4 12h16' }[kind]
   return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path d="${d}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 }
 
@@ -402,9 +405,8 @@ export function swatchGlyph(r: Reading, s: Slice) {
   return ['╱╱╱', '╲╲╲', '│││', '═══'][Math.max(0, k) % 4]!
 }
 
-const swatchColor = (s: Slice) => (s.kind === 'used' ? (s.name === 'messages' ? '#8e96a3' : s.color) : FREE)
 
-const LEGEND_LINE = 18
+const LEGEND_LINE = 21 // a swatch as tall as the bar, and a little air
 const CHAR = 6.4 // an estimate of a character's width at FONT, generous so items never overlap
 
 // The legend from `top`: each slice a swatch, its name, tokens and share, packed into lines of `width`.
@@ -415,22 +417,22 @@ function legendParts(r: Reading, width: number, top: number) {
   let line = 0
   r.slices.forEach((s, i) => {
     const words = `${s.name} ${tokens(s.tokens)}${s.kind === 'used' ? ` ${share(s.tokens, r.window)}` : ''}`
-    const w = 15 + words.length * CHAR
+    const w = SWATCH.width + 6 + words.length * CHAR
     if (x > 0 && x + w > width) {
       x = 0
       line++
     }
     const y = top + line * LEGEND_LINE
     if (s.kind === 'free') {
-      parts.push(`<rect x="${x}" y="${y + 4.5}" width="10" height="1" fill="${FREE}"/>`)
+      parts.push(`<rect x="${x}" y="${y + SWATCH.height / 2 - 0.5}" width="${SWATCH.width}" height="1" fill="${FREE}"/>`)
     } else {
       const p = pattern(r, s, `l${i}`, y)
       defs.push(p.def)
-      parts.push(`<rect x="${x}" y="${y}" width="10" height="10" fill="${p.fill}"/>`)
+      parts.push(`<rect x="${x}" y="${y}" width="${SWATCH.width}" height="${SWATCH.height}" fill="${p.fill}"/>`) // the same strip as the tooltips'
     }
     const isUsed = s.kind === 'used'
     parts.push(
-      `<text x="${x + 15}" y="${y + 9}" xml:space="preserve">` +
+      `<text x="${x + SWATCH.width + 6}" y="${y + 11}" xml:space="preserve">` +
         `<tspan fill="${isUsed ? '#c4c4c9' : TEXT}">${esc(s.name)} </tspan>` +
         `<tspan fill="${isUsed ? '#e8e8ea' : TEXT}"${isUsed ? ' font-weight="600"' : ''}>${tokens(s.tokens)}</tspan>` +
         (isUsed ? `<tspan fill="${TEXT}"> ${esc(share(s.tokens, r.window))}</tspan>` : '') + // escaped: "<0.1%" would break the markup
@@ -441,11 +443,12 @@ function legendParts(r: Reading, width: number, top: number) {
   return { defs: defs.join(''), parts: parts.join(''), height: 8 + (line + 1) * LEGEND_LINE - 6 }
 }
 
-// A legend swatch, the slice's own fill in a small square.
+// A swatch for the tooltips: a strip of the slice's own fill, at the bar's scale, as in the legend.
 export function swatchSvg(r: Reading, s: Slice) {
+  const { width, height } = SWATCH
   const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, `s${r.slices.indexOf(s)}`) // ids unique per slice, should two swatches ever share a page
-  const body = s.kind === 'free' ? `<rect x="0" y="5.5" width="12" height="1" fill="${FREE}"/>` : `<rect width="12" height="12" fill="${p.fill}"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><defs>${p.def}</defs>${body}</svg>`
+  const body = s.kind === 'free' ? `<rect x="0" y="${height / 2 - 0.5}" width="${width}" height="1" fill="${FREE}"/>` : `<rect width="${width}" height="${height}" fill="${p.fill}"/>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${p.def}</defs>${body}</svg>`
 }
 
 // The compact button: compacts the conversation as /compact does. Between turns only; the engine refuses it
