@@ -102,10 +102,10 @@ describe('compact-token-bar', () => {
 
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /204k sur 1M · compactage à 950k/ })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: / 20% / })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '🕒 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: '📅 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: /Limite de session \(5 h\) · 42% utilisé · remise à zéro dans 2 h/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^ ?.* · 5% utilisé/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded

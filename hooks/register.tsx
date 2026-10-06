@@ -3,7 +3,7 @@
 //   stacked bar. Colors are a neutral slate ramp and every category has its own texture (stripes,
 //   grid...), so the bar reads without color; messages are the dotted block, a notch lighter than
 //   the rest. Hovering a segment shows its label. The detailed legend is folded by default: the
-//   arrow at the end of the header opens it. Next to it, the session and weekly limits.
+//   chevron at the end of the bar opens it. Next to it, the session and weekly limits.
 //   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -20,8 +20,11 @@ const MESSAGES = { color: '#e4e9f0', glyph: '⣿' } as const
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '░' } as const
-// A clock for the window that counts in hours, a calendar for the one that counts in days.
-const LIMITS = { five_hour: { icon: '🕒', label: 'Limite de session (5 h)' }, seven_day: { icon: '📅', label: 'Limite hebdomadaire (7 jours)' } } as const
+// Plain text glyphs, drawn in the text's own color: a clock for the window that counts in hours,
+// a grid (a calendar) for the one that counts in days.
+const LIMITS = { five_hour: { icon: '◷', label: 'Limite de session (5 h)' }, seven_day: { icon: '▦', label: 'Limite hebdomadaire (7 jours)' } } as const
+const ORANGE = '#e08a3c'
+const CHEVRON = { closed: '⌄', open: '⌃' } as const // down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -67,8 +70,9 @@ export const register: Register = on => {
     const open = await read($, isExpanded)
 
     const head = `${tokens(r.total)} sur ${tokens(r.window)}${r.compactsAt ? ` · compactage à ${tokens(r.compactsAt)}` : ''}`
-    const pct = ` ${r.percent}% `
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+    const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
+    const barWidth = inner - 2 // the fold button takes the last two cells of the line
     const now = await $.clock.now()
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
@@ -83,28 +87,29 @@ export const register: Register = on => {
             <Box flexDirection="row">
               <Text wrap="truncate-start">
                 <Text dimColor>{`${head} `}</Text>
-                <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
+                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${r.percent}% `}</Text> : <Text dimColor>{`${r.percent}%`}</Text>}
                 <Text>{' '}</Text>
               </Text>
               {r.limits.length > 0 && <Text dimColor>{'│ limite '}</Text>}
-              {r.limits.map(l => (
-                <Box key={`limit-${l.kind}`} marginRight={1}>
-                  <Text color={l.percent >= 90 ? 'red' : l.percent >= 70 ? 'yellow' : undefined}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
-                  <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-                    <Text bold color="black" backgroundColor="white" wrap="truncate-end">
-                      {` ${LIMITS[l.kind].label} · ${l.percent}% utilisé${resets(l.resetsAt, now)} `}
-                    </Text>
+              {r.limits.map(l => {
+                const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
+                return (
+                  <Box key={`limit-${l.kind}`} marginRight={1}>
+                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
+                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+                      <Text bold color="black" backgroundColor="white" wrap="truncate-end">
+                        {` ${LIMITS[l.kind].label} · ${l.percent}% utilisé${resets(l.resetsAt, now)} `}
+                      </Text>
+                    </Box>
                   </Box>
-                </Box>
-              ))}
-              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
-                {open ? '▾' : '▸'}
-              </Button>
+                )
+              })}
             </Box>
           </Box>
           <Box flexDirection="row">
-            {cells(r, inner).map((c, i) => {
-              const onRight = at + c.text.length / 2 > inner / 2
+            <Box flexDirection="row" flexGrow={1}>
+            {cells(r, barWidth).map((c, i) => {
+              const onRight = at + c.text.length / 2 > barWidth / 2
               at += c.text.length
               return (
                 <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
@@ -117,6 +122,12 @@ export const register: Register = on => {
                 </Box>
               )
             })}
+            </Box>
+            <Box marginLeft={1}>
+              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
+                {open ? CHEVRON.open : CHEVRON.closed}
+              </Button>
+            </Box>
           </Box>
           {open &&
             legend(r, inner).map(line => (
