@@ -72,7 +72,7 @@ describe('compact-token-bar', () => {
     // Every used row has its own texture too, so the bar reads without color.
     const glyphs = r.slices.filter(s => s.kind === 'used').map(s => s.glyph)
     expect(new Set(glyphs).size).toBe(glyphs.length)
-    expect(r.slices.find(s => s.name === 'messages')?.color).toBe('#d97757')
+    expect(r.slices.find(s => s.name === 'messages')?.glyph).toBe('⣿') // the dotted block, no accent color
 
     for (const width of [20, 47, 80, 200]) {
       const bar = cells(r, width)
@@ -86,10 +86,10 @@ describe('compact-token-bar', () => {
     expect(toReading({ ...BREAKDOWN, isAutoCompactEnabled: false }).compactsAt).toBeUndefined()
     // The slate ramp runs from its dark end to its light end.
     expect(ramp(0, 4)).toBe('#566178')
-    expect(ramp(3, 4)).toBe('#cfd7e3')
+    expect(ramp(3, 4)).toBe('#a9b3c6')
     expect(resets(undefined, 0)).toBe('')
-    expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
-    expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
+    expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · remise à zéro dans 2 h 10')
+    expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · remise à zéro dans 3 d 5 h')
     // Only the session and weekly windows are kept, session first.
     expect(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 9.6 }, { kind: 'spend_limit', percentUsed: 1 }, { kind: 'five_hour', percentUsed: 3 }]).limits.map(l => [l.kind, l.percent])).toEqual([['five_hour', 3], ['seven_day', 10]])
   })
@@ -101,13 +101,13 @@ describe('compact-token-bar', () => {
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /204k sur 1M · compactage à 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: / 20% / })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
-    expect(await band.find({ type: 'Text', text: /session \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
+    expect(await band.find({ type: 'Text', text: '🕒 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '📅 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: /Limite de session \(5 h\) · 42% utilisé · remise à zéro dans 2 h/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% utilisé/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
     expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
     await band.unmount()
@@ -151,16 +151,16 @@ describe('compact-token-bar', () => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/masquée/)
     expect(store.isHidden).toBe(true)
     let band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
     await band.unmount()
 
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Barre de contexte affichée')
     expect(store.isHidden).toBe(false)
     band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeDefined()
     await band.unmount()
   })
 
@@ -169,7 +169,7 @@ describe('compact-token-bar', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
     await band.unmount()
   })
 })

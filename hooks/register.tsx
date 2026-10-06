@@ -1,8 +1,9 @@
 // Compact Claude Token: what is filling my context window?
 //   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, the window as one
-//   stacked bar. Colors are neutral greys and every category has its own texture (solid, stripes,
-//   grid...), so the bar reads without color. Hovering a segment shows its label. The detailed
-//   legend is folded by default: the arrow at the end of the header opens it.
+//   stacked bar. Colors are a neutral slate ramp and every category has its own texture (stripes,
+//   grid...), so the bar reads without color; messages are the dotted block, a notch lighter than
+//   the rest. Hovering a segment shows its label. The detailed legend is folded by default: the
+//   arrow at the end of the header opens it. Next to it, the session and weekly limits.
 //   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -12,14 +13,15 @@ import type { Reading, Slice } from '../types'
 const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
 // One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
-const RAMP = ['#566178', '#cfd7e3'] as const
-// One texture per used category: solid is kept for messages, the row that grows.
+const RAMP = ['#566178', '#a9b3c6'] as const
+// One texture per used category; messages, the row that grows, gets the dots and the lightest slate.
 const TEXTURES = ['▓', '▚', '▤', '▥', '▦', '▞', '▒']
-const MESSAGES = '#d97757' // the one warm accent: the row that grows
+const MESSAGES = { color: '#e4e9f0', glyph: '⣿' } as const
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
-const GLYPH = { used: '█', free: '─', buffer: '░' } as const
-const LIMITS = { five_hour: { icon: '◷', label: 'session (5 h)' }, seven_day: { icon: '▦', label: 'week (7 days)' } } as const
+const GLYPH = { free: '─', buffer: '░' } as const
+// A clock for the window that counts in hours, a calendar for the one that counts in days.
+const LIMITS = { five_hour: { icon: '🕒', label: 'Limite de session (5 h)' }, seven_day: { icon: '📅', label: 'Limite hebdomadaire (7 jours)' } } as const
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -29,7 +31,7 @@ const isExpanded = atom({ plugin: 'compact-token-bar', key: 'isExpanded' } as co
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
-    await $.command.register({ name: 'compact-token-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+    await $.command.register({ name: 'compact-token-bar', description: 'Affiche ou masque la barre de contexte au-dessus du prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
     const hidden = (await $.store.get('isHidden').catch(() => undefined)) === true
     await update($, isHidden, () => hidden)
     void refresh($).catch(() => {})
@@ -52,7 +54,7 @@ export const register: Register = on => {
     const hidden = await update($, isHidden, h => !h)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
-    return { text: hidden ? 'Context bar hidden. /compact-token-bar shows it again' : 'Context bar on' }
+    return { text: hidden ? 'Barre de contexte masquée. /compact-token-bar la réaffiche' : 'Barre de contexte affichée' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -64,7 +66,7 @@ export const register: Register = on => {
     if (inner < MIN_WIDTH) return rest
     const open = await read($, isExpanded)
 
-    const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
+    const head = `${tokens(r.total)} sur ${tokens(r.window)}${r.compactsAt ? ` · compactage à ${tokens(r.compactsAt)}` : ''}`
     const pct = ` ${r.percent}% `
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
     const now = await $.clock.now()
@@ -76,8 +78,7 @@ export const register: Register = on => {
         <Box flexDirection="column" borderStyle="round" borderColor="inactive" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Text wrap="truncate-end">
-              <Text color="#d97757">{'◆ '}</Text>
-              <Text bold>context</Text>
+              <Text bold>Contexte</Text>
             </Text>
             <Box flexDirection="row">
               <Text wrap="truncate-start">
@@ -85,13 +86,13 @@ export const register: Register = on => {
                 <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
                 <Text>{' '}</Text>
               </Text>
-              {r.limits.length > 0 && <Text dimColor>{'│ '}</Text>}
+              {r.limits.length > 0 && <Text dimColor>{'│ limite '}</Text>}
               {r.limits.map(l => (
                 <Box key={`limit-${l.kind}`} marginRight={1}>
                   <Text color={l.percent >= 90 ? 'red' : l.percent >= 70 ? 'yellow' : undefined}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
-                  <Box position="absolute" top={-1} right={0} display="none" hover={{ display: 'flex' }}>
+                  <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
                     <Text bold color="black" backgroundColor="white" wrap="truncate-end">
-                      {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
+                      {` ${LIMITS[l.kind].label} · ${l.percent}% utilisé${resets(l.resetsAt, now)} `}
                     </Text>
                   </Box>
                 </Box>
@@ -167,8 +168,8 @@ export function toReading(b: {
       s.color = s.kind === 'free' ? FREE : BUFFER
       s.glyph = GLYPH[s.kind]
     } else if (s.name === 'messages') {
-      s.color = MESSAGES
-      s.glyph = GLYPH.used
+      s.color = MESSAGES.color
+      s.glyph = MESSAGES.glyph
     } else {
       s.color = ramp(next, ramped)
       s.glyph = TEXTURES[next % TEXTURES.length]!
@@ -195,14 +196,14 @@ export function ramp(i: number, n: number) {
   return `#${a!.map((v, k) => Math.round(v + (b![k]! - v) * t).toString(16).padStart(2, '0')).join('')}`
 }
 
-// " · resets in 2 h 10" for a window's reset time, nothing when it is unknown or past.
+// " · remise à zéro dans 2 h 10" for a window's reset time, nothing when it is unknown or past.
 export function resets(at: string | undefined, now: number) {
   const ms = at ? Date.parse(at) - now : NaN
   if (!(ms > 0)) return ''
   const min = Math.round(ms / 60_000)
   const d = Math.floor(min / 1440)
   const h = Math.floor((min % 1440) / 60)
-  return ` · resets in ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
+  return ` · remise à zéro dans ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
 }
 
 // The bar as runs of cells: each slice gets its share of `width`, a used one at least one cell.
