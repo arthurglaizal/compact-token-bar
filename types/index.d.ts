@@ -23,6 +23,6 @@ export type Reading = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'compact-token-bar': { reading: Reading | null; isHidden: boolean; isExpanded: boolean }
+    'compact-token-bar': { reading: Reading | null; isHidden: boolean; isExpanded: boolean; isCompacting: boolean }
   }
 }

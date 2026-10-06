@@ -31,6 +31,7 @@ const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the sa
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
 const isHidden = atom({ plugin: 'compact-token-bar', key: 'isHidden' } as const, false)
 const isExpanded = atom({ plugin: 'compact-token-bar', key: 'isExpanded' } as const, false)
+const isCompacting = atom({ plugin: 'compact-token-bar', key: 'isCompacting' } as const, false) // while the compact button's compaction runs
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -80,6 +81,7 @@ export const register: Register = on => {
     const inner = e.props.bodyColumns - 2 // no border: the padding takes 2 cells
     if (inner < MIN_WIDTH) return rest
     const open = await read($, isExpanded)
+    const compacting = await read($, isCompacting)
 
     const { head, percent, level } = fill(r)
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
@@ -94,7 +96,7 @@ export const register: Register = on => {
       // One flex row, so nothing overlaps: the title and the bar, then the figures, the compact button, the
       // limits and the two card buttons, each a box of its own. Only the bar's width is estimated.
       const drawn = Math.round((inner - 6) * PX_PER_COLUMN) // the chevron and the cross take the last six cells
-      const { context, limits } = figures(r)
+      const { context, limits } = figures(r, compacting)
       const contextWidth = Math.ceil(spanWidth(context)) + 4
       const limitsWidth = limits.length ? Math.ceil(spanWidth(limits)) + 4 : 0
       // A little wider than the estimate of the room: the row shrinks it to fit rather than leave a gap after it,
@@ -191,7 +193,7 @@ export const register: Register = on => {
     }
     // The terminal: the same single line, in glyphs. Every width is known to the cell here, so the bar takes
     // exactly the room the rest leaves, and every gap is two cells.
-    const pctText = heat ? ` ${percent}% ` : `${percent}%`
+    const pctText = compacting ? 'compacting…' : heat ? ` ${percent}% ` : `${percent}%`
     const limitTexts = r.limits.map(l => `${l.percent}%`) // bare figures, as in the app
     const fixed =
       'Context'.length + 2 + (2 + head.length) + (2 + pctText.length) + (2 + 1) +
@@ -228,7 +230,7 @@ export const register: Register = on => {
               <Text dimColor>{head}</Text>
             </Box>
             <Box marginLeft={2}>
-              {heat ? <Text bold color="black" backgroundColor={heat}>{pctText}</Text> : <Text dimColor>{pctText}</Text>}
+              {heat && !compacting ? <Text bold color="black" backgroundColor={heat}>{pctText}</Text> : <Text dimColor>{pctText}</Text>}
             </Box>
             <Box marginLeft={2}>
               <Button key="compact" plain dimColor onPress={() => void compactNow($)}>
@@ -368,12 +370,12 @@ export function icon(kind: 'down' | 'up' | 'close' | 'compact') {
 }
 
 // The figures of the line, as spans with the gap before each: the context's fill, then the limits.
-export function figures(r: Reading) {
+export function figures(r: Reading, compacting = false) {
   const { head, percent, level } = fill(r)
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
   const context: Span[] = [
     { text: head, gap: 0 },
-    { text: `${percent}%`, gap: GAP, color: heat(level) },
+    compacting ? { text: 'compacting…', gap: GAP } : { text: `${percent}%`, gap: GAP, color: heat(level) }, // the button's work, shown where its result will land
   ]
   const limits: Span[] = r.limits.length === 0 ? [] : [
     { text: '│', gap: 0 },
@@ -464,14 +466,19 @@ async function compactNow($: EngineInterface) {
       void $.ui.toast(text)
     } catch {}
   }
-  say('Compacting the conversation…')
+  if (await read($, isCompacting)) return // one at a time
+  await update($, isCompacting, () => true)
+  say('Compacting the conversation… this can take a minute on a full window')
   try {
     const done = await $.session.compact()
     if (done && 'skip' in done && done.skip) return say('Compaction was skipped')
+    say('Conversation compacted')
   } catch {
     return say('Compaction runs between turns: try again once Claude is done')
+  } finally {
+    await update($, isCompacting, () => false).catch(() => {})
+    await refresh($).catch(() => {})
   }
-  await refresh($).catch(() => {})
 }
 
 // The close button: hides the bar as /compact-token-bar does, and keeps the choice.

@@ -162,13 +162,16 @@ describe('compact-token-bar', () => {
   test('the compact button compacts the conversation', async ($, on) => {
     engine(on)
     const compacted: unknown[] = []
-    on('session.compact', (_$: any, e: any) => (compacted.push(e), { messages: [] }))
-    on('ui.toast', () => ({ value: undefined }))
+    on('session.compact', (_$: any, e: any) => (compacted.push(e), { messages: [{ role: 'user', text: 'summary', toolUses: [] }] }))
+    const toasts: unknown[] = []
+    on('ui.toast', (_$: any, e: any) => (toasts.push(e), { value: undefined }))
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
     await band.press({ key: 'compact' })
     expect(compacted.length).toBe(1)
+    expect(JSON.stringify(toasts)).toContain('Conversation compacted') // says when it is done
+    expect(await band.find({ type: 'Svg', alt: /compacting…/ })).toBeUndefined() // back to the figures once done
     await band.unmount()
   })
 
