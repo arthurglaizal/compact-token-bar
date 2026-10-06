@@ -86,7 +86,9 @@ export const register: Register = on => {
       const { context, limits } = figures(r)
       const contextWidth = Math.ceil(spanWidth(context)) + 4
       const limitsWidth = limits.length ? Math.ceil(spanWidth(limits)) + 4 : 0
-      const rowWidth = Math.max(160, drawn - contextWidth - limitsWidth - Math.round(4 * PX_PER_COLUMN))
+      // A little wider than the estimate of the room: the row shrinks it to fit rather than leave a gap after it,
+      // so the bar always ends exactly one GAP before the figures.
+      const rowWidth = Math.max(160, drawn - contextWidth - limitsWidth - Math.round(4 * PX_PER_COLUMN) + 32)
       const barX = titleWidth()
       const col = (px: number) => Math.round(px / PX_PER_COLUMN)
       const barCols = Math.max(1, col(rowWidth - barX))
@@ -139,7 +141,8 @@ export const register: Register = on => {
                 </Box>
               </Box>
               <Box flexGrow={1} />
-              <Svg source={spansSvg(context, contextWidth)} alt={context.map(x => x.text).join(' ')} />
+              {/* Left-aligned after exactly one GAP: the space from the bar to the figures is the space between them. */}
+              <Svg source={spansSvg(context, contextWidth + GAP, GAP)} alt={context.map(x => x.text).join(' ')} />
               <Box marginLeft={1}>
                 {iconButton({ key: 'compact', icon: icon('compact'), tip: 'Compact the conversation now', press: () => void compactNow($) })}
               </Box>
@@ -266,6 +269,7 @@ const TITLE_FONT = 13 // the title a little larger than the figures
 const ROW = 20 // the height of the card's line
 const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
+const GAP = 12 // the space between the bar and the figures, and between the figures
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const SWATCH = { width: 24, height: BAR_HEIGHT } // a strip of the bar at its own scale, for the tooltips
@@ -349,7 +353,7 @@ export function figures(r: Reading) {
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
   const context: Span[] = [
     { text: head, gap: 0 },
-    { text: `${percent}%`, gap: 12, color: heat(level) },
+    { text: `${percent}%`, gap: GAP, color: heat(level) },
   ]
   const limits: Span[] = r.limits.length === 0 ? [] : [
     { text: '│', gap: 0 },
@@ -368,13 +372,14 @@ const titleWidth = () => Math.round('Context'.length * CHAR_WIDTH * (TITLE_FONT 
 const svgOpen = (width: number, height: number) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">`
 
-// Spans of small grey text, right-aligned in a box `width` wide: any slack in the estimate becomes space on
-// the left, never an overlap.
-export function spansSvg(spans: Span[], width: number) {
+// Spans of small grey text in a box `width` wide. Right-aligned by default: any slack in the estimate becomes
+// space on the left, never an overlap. Left-aligned from `lead` when the space before the text must be exact.
+export function spansSvg(spans: Span[], width: number, lead?: number) {
   const body = spans
     .map(x => `<tspan${x.gap ? ` dx="${x.gap}"` : ''} fill="${x.color ?? TEXT}"${x.color ? ' font-weight="600"' : ''}>${esc(x.text)}</tspan>`)
     .join('')
-  return `${svgOpen(width, ROW)}<text x="${width}" y="14" text-anchor="end" xml:space="preserve">${body}</text></svg>`
+  const at = lead === undefined ? `x="${width}" text-anchor="end"` : `x="${lead}"`
+  return `${svgOpen(width, ROW)}<text ${at} y="14" xml:space="preserve">${body}</text></svg>`
 }
 
 // The title and the bar, `width` wide: "Context", then the bar in the rest of the room.
