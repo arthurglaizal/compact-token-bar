@@ -24,6 +24,7 @@ const GLYPH = { free: '─', buffer: '▃' } as const
 // The windows, session first then week; the line shows their figures alone and the hover names them.
 const LIMITS = { five_hour: { label: 'Session limit (5 h)', short: '5h' }, seven_day: { label: 'Weekly limit (7 days)', short: 'week' } } as const // short: the terminal's label, where there is no hover to tell
 const ORANGE = '#e08a3c'
+const BAND_CONTROL = 4 // the terminal's own `[-]` at the end of the band's first row, and a space before it
 const TERMINAL_COMPACT = '≍' // two curves pinched toward each other: the terminal's compact button
 const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
 
@@ -190,7 +191,8 @@ export const register: Register = on => {
     const fixed =
       'Context'.length + 2 + (2 + head.length) + (2 + pctText.length) + (2 + 1) +
       (r.limits.length ? 2 + '│ limit'.length + limitTexts.reduce((n, t) => n + 2 + t.length, 0) : 0) + (2 + 1) + (2 + 1)
-    const lineBar = Math.max(4, inner - fixed)
+    // The terminal draws its own `[-]` (fold the band) at the end of the first row: leave it its four cells.
+    const lineBar = Math.max(4, inner - fixed - BAND_CONTROL)
     return (
       <Box flexDirection="column">
         <Box flexDirection="column" paddingX={1}>
