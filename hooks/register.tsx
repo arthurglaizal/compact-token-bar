@@ -115,22 +115,19 @@ export const register: Register = on => {
                 {/* A picture has no hover of its own: empty keyed boxes lie over the bar and reveal the labels. */}
                 <Box position="absolute" top={0} left={col(barX)} width={barCols} flexDirection="row" height={1}>
                   {cells(r, barCols).map((c, i) => {
-                    const onRight = from + c.text.length / 2 > barCols / 2
                     from += c.text.length
+                    const toBarEnd = from - barCols // from this segment's right edge to the bar's, in cells
                     return (
                       <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
                         <Box width={0} flexGrow={1} height={1} overflow="hidden">
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
-                        {/* The label in soft greys, after the segment's own pattern, the very drawing of the bar and
-                            the legend. Revealed on hover, the app floats it above the line. */}
-                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }} flexDirection="row" alignItems="center">
-                          <Svg source={swatchSvg(r, c.slice)} alt=" " width={SWATCH.width} height={SWATCH.height} />
-                          <Text wrap="truncate-end">
-                            <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
-                            <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
-                            <Text color={TIP.dim}>{` ${share(c.slice.tokens, r.window)}`}</Text>
-                          </Text>
+                        {/* The details as a chip drawn in the line itself, at the end of the bar: the segment's own
+                            pattern (the very drawing of the bar and the legend), its name, tokens and share. A picture
+                            in a floating tooltip is never drawn, so the chip is parked far above the band, where it is
+                            clipped, and the hover brings it into the line. */}
+                        <Box position="absolute" top={-60} right={toBarEnd} hover={{ top: 0 }}>
+                          <Svg source={chipSvg(r, c.slice)} alt={`${c.slice.name} ${tokens(c.slice.tokens)} ${share(c.slice.tokens, r.window)}`} />
                         </Box>
                       </Box>
                     )
@@ -448,6 +445,28 @@ export function swatchSvg(r: Reading, s: Slice) {
   const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, `s${r.slices.indexOf(s)}`) // ids unique per slice, should two swatches ever share a page
   const body = s.kind === 'free' ? `<rect x="0" y="${height / 2 - 0.5}" width="${width}" height="1" fill="${FREE}"/>` : `<rect width="${width}" height="${height}" fill="${p.fill}"/>`
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${p.def}</defs>${body}</svg>`
+}
+
+// A segment's details as a chip for the line: a dark rounded card holding the segment's pattern strip, its
+// name, tokens and share, in the tooltips' greys.
+export function chipSvg(r: Reading, s: Slice) {
+  const { width: sw, height: sh } = SWATCH
+  const words = [
+    { text: s.name, fill: TIP.name },
+    { text: tokens(s.tokens), fill: TIP.figure, bold: true },
+    { text: share(s.tokens, r.window), fill: TIP.dim },
+  ]
+  const textWidth = words.reduce((w, x) => w + x.text.length * CHAR_WIDTH + 5, 0)
+  const width = Math.ceil(8 + sw + 7 + textWidth + 8)
+  const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, 'chip', (ROW - sh) / 2)
+  const strip = s.kind === 'free' ? `<rect x="8" y="${ROW / 2 - 0.5}" width="${sw}" height="1" fill="${FREE}"/>` : `<rect x="8" y="${(ROW - sh) / 2}" width="${sw}" height="${sh}" fill="${p.fill}"/>`
+  const text = words.map((x, i) => `<tspan${i ? ' dx="5"' : ''} fill="${x.fill}"${x.bold ? ' font-weight="600"' : ''}>${esc(x.text)}</tspan>`).join('')
+  return (
+    `${svgOpen(width, ROW)}<defs>${p.def}</defs>` +
+    `<rect x="0.5" y="0.5" width="${width - 1}" height="${ROW - 1}" rx="5" fill="#2b2b2e" stroke="#3c3c40"/>` +
+    strip +
+    `<text x="${8 + sw + 7}" y="14" xml:space="preserve">${text}</text></svg>`
+  )
 }
 
 // The compact button: compacts the conversation as /compact does. Between turns only; the engine refuses it

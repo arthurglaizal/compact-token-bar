@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barRowSvg, barSvg, cells, figures, icon, legendSvg, spanWidth, spansSvg, swatchGlyph, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barRowSvg, barSvg, chipSvg, cells, figures, icon, legendSvg, spanWidth, spansSvg, swatchGlyph, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -113,6 +113,11 @@ describe('compact-token-bar', () => {
     const tiny = legendSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700)
     expect(tiny).toContain('&lt;0.1%')
     expect(tiny).not.toMatch(/> ?<0\.1%/)
+    // The hover chip holds the segment's own pattern strip, its name and figures, escaped.
+    const chip = chipSvg(r, r.slices.find(s => s.name === 'messages')!)
+    expect(chip).toContain('<circle') // the quincunx of messages
+    expect(chip).toContain('>messages</tspan>')
+    expect(chipSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }).slices.find(s => s.name === 'memory files')!)).toContain('&lt;0.1%')
     // The tooltips recall each segment's pattern in text.
     expect(swatchGlyph(r, r.slices.find(s => s.name === 'messages')!)).toBe('⠑⠑⠑')
     expect(swatchGlyph(r, r.slices.find(s => s.kind === 'free')!)).toBe('───')
@@ -156,8 +161,7 @@ describe('compact-token-bar', () => {
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
     const svg = await band.find({ type: 'Svg' })
     expect(svg).toBeDefined()
-    expect(await band.find({ type: 'Text', text: ' messages ' })).toBeDefined() // the label of a segment, over the picture
-    expect(await band.find({ type: 'Text', text: '186k' })).toBeDefined()
+    expect(await band.find({ type: 'Svg', alt: 'messages 186k 19%' })).toBeDefined() // the hover chip of a segment
     expect(await band.find({ type: 'Text', text: 'Session limit (5 h) ' })).toBeDefined() // the limits' label
     expect(await band.find({ type: 'Text', text: 'Compact the conversation now' })).toBeDefined() // the buttons' tooltips
     expect(await band.find({ type: 'Text', text: 'Show details' })).toBeDefined()
