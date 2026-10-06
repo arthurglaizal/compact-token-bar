@@ -28,7 +28,7 @@ From left to right:
 
 - **The bar**: what fills the window (system prompt, tools, MCP tools, memory files, skills, messages), then free space and the compaction buffer. Each category has its own pattern, so it reads without color.
 - **The fill**: tokens used against the real limit, the point where auto-compaction runs, and the matching percentage.
-- **Compact**: compacts the conversation now, like `/compact`.
+- **Compact**: runs `/compact` for you, so the compaction shows in the conversation as if you had typed it.
 - **Limits**: your 5-hour session and weekly usage, in that order. Hover for the full label and the reset time. A plan without a session window shows the weekly one alone.
 - **Details**: the chevron unfolds a legend with each category's tokens and share.
 - **Close**: hides the bar. Your choice is kept across sessions.
@@ -50,7 +50,7 @@ Once installed, the bar appears above the prompt in every new session. It refres
 
 - Mods are a recent Claude Code feature: you need **Claude Code 2.1.287 or later**, and an update can change the mod API.
 - Session and weekly limits appear only when you are signed in with a Claude subscription. They are known after the first response; until then the bar shows the last values seen, if they have not reset.
-- Compacting runs between turns only. While Claude is answering, the button asks you to try again.
+- If Claude is answering, the compact button's `/compact` waits until the answer is done.
 - On desktop, widths are estimated from terminal columns, so spacing can shift slightly with the window size.
 
 ## Install in Claude Code

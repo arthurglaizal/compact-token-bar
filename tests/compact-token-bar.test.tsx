@@ -160,18 +160,15 @@ describe('compact-token-bar', () => {
     await band.unmount()
   })
 
-  test('the compact button compacts the conversation', async ($, on) => {
+  test('the compact button runs /compact in the conversation', async ($, on) => {
     engine(on)
-    const compacted: unknown[] = []
-    on('session.compact', (_$: any, e: any) => (compacted.push(e), { messages: [{ role: 'user', text: 'summary', toolUses: [] }] }))
-    const toasts: unknown[] = []
-    on('ui.toast', (_$: any, e: any) => (toasts.push(e), { value: undefined }))
+    const ran: any[] = []
+    on('command.run', (_$: any, e: any) => (ran.push(e), { text: 'Compacted' }))
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
     await band.press({ key: 'compact' })
-    expect(compacted.length).toBe(1)
-    expect(JSON.stringify(toasts)).toContain('Conversation compacted') // says when it is done
+    expect(ran.map(e => e.command)).toEqual(['compact']) // as if typed: it shows in the transcript
     await band.unmount()
   })
 

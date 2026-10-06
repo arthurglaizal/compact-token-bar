@@ -458,23 +458,17 @@ function legendParts(r: Reading, width: number, top: number) {
   return { defs: defs.join(''), parts: parts.join(''), height: 8 + (line + 1) * LEGEND_LINE - 6 }
 }
 
-// The compact button: compacts the conversation as /compact does. Between turns only; the engine refuses it
-// while a turn runs, and this plugin's own session.compact hook does not see its own call, so it refreshes.
+// The compact button: runs /compact as if the person typed it, so the compaction shows in the conversation
+// like any /compact (queued until Claude is idle). The line says "compacting…" until it is done.
 async function compactNow($: EngineInterface) {
-  const say = (text: string) => {
-    try {
-      void $.ui.toast(text)
-    } catch {}
-  }
   if (await read($, isCompacting)) return // one at a time
   await update($, isCompacting, () => true)
-  say('Compacting the conversation… this can take a minute on a full window')
   try {
-    const done = await $.session.compact()
-    if (done && 'skip' in done && done.skip) return say('Compaction was skipped')
-    say('Conversation compacted')
+    await $.command.run({ command: 'compact', args: '' })
   } catch {
-    return say('Compaction runs between turns: try again once Claude is done')
+    try {
+      void $.ui.toast('Could not run /compact: type it in the prompt instead')
+    } catch {}
   } finally {
     await update($, isCompacting, () => false).catch(() => {})
     await refresh($).catch(() => {})
