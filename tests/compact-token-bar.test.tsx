@@ -109,7 +109,7 @@ describe('compact-token-bar', () => {
     const opened = cardSvg(r, 700, true)
     expect(opened).toContain('>messages </tspan>')
     expect(opened).toContain('>186k</tspan>')
-    expect((opened.match(/<circle/g) ?? []).length).toBe(2) // the dots of messages, in the bar and in its swatch
+    expect((opened.match(/<circle/g) ?? []).length).toBe(4) // the quincunx of messages (two dots a tile), in the bar and in its swatch
     // A share under 0.1% is escaped: a bare "<" would make the picture fail to load.
     const tiny = cardSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700, true)
     expect(tiny).toContain('&lt;0.1%')

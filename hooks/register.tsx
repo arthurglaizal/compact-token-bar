@@ -17,7 +17,7 @@ const RAMP = ['#4c5568', '#868fa0'] as const
 // Lower blocks, so the bar is a little shorter than a line of text and has no gaps between neighbours.
 // Used rows are solid, messages (the row that grows) are quiet dots, the buffer a low band.
 const USED = '▆'
-const MESSAGES = { color: '#7b8391', glyph: '⠿', ground: '#26282c' } as const // quiet grey dots on a barely lighter ground
+const MESSAGES = { color: '#5d6370', glyph: '⠿', ground: '#26282c' } as const // small dots in quincunx on a barely lighter ground
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
@@ -232,7 +232,7 @@ const FONT = 11
 const TITLE_FONT = 13 // the title a little larger than the figures
 const ROW = 20 // the card's one line: the title, the bar, the figures and the chevron
 const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
-const DOT_STEP = 7.5 // airy dots: two rows across the bar
+const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
@@ -257,8 +257,8 @@ export function pattern(r: Reading, s: Slice, id: string, y = 0) {
     return { def: `<pattern id="${id}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="4" fill="${BUFFER}"/></pattern>`, fill: `url(#${id})` }
   }
   if (s.name === 'messages') {
-    // Whole dots only: the tile starts where the shape does, and the shape is a whole number of tiles tall.
-    return { def: `<pattern id="${id}" x="0" y="${y}" width="${DOT_STEP}" height="${DOT_STEP}" patternUnits="userSpaceOnUse"><rect width="${DOT_STEP}" height="${DOT_STEP}" fill="${MESSAGES.ground}"/><circle cx="${DOT_STEP / 2}" cy="${DOT_STEP / 2}" r="1.2" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
+    // Dots in quincunx; the tile starts where the shape does and is as tall as the bar, so no dot is cut.
+    return { def: `<pattern id="${id}" x="0" y="${y}" width="${DOT_STEP}" height="${BAR_HEIGHT}" patternUnits="userSpaceOnUse"><rect width="${DOT_STEP}" height="${BAR_HEIGHT}" fill="${MESSAGES.ground}"/><circle cx="${DOT_STEP / 4}" cy="4" r="0.9" fill="${MESSAGES.color}"/><circle cx="${(DOT_STEP * 3) / 4}" cy="11" r="0.9" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
   }
   const angles = [45, 135, 0, 90]
   const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
