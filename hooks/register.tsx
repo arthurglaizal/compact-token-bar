@@ -14,14 +14,14 @@ const SPLIT = '   '
 // One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
 const RAMP = ['#566178', '#a9b3c6'] as const
 // One texture per used category; messages, the row that grows, are quiet dots on a grey ground.
-const TEXTURES = ['▓', '▚', '▤', '▥', '▦', '▞', '▒']
+const TEXTURES = ['▓', '▚', '▒', '▞', '▌', '▀', '▄'] // block elements fill their cell: no gaps between neighbours
 const MESSAGES = { color: '#9aa5b8', glyph: '⠪', background: '#3a4152' } as const
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '░' } as const
-// A stopwatch for the window that counts in hours, a calendar for the one that counts in days. The
-// U+FE0E selector asks for the text form of each, so it takes the text's own color, not an emoji's.
-const LIMITS = { five_hour: { icon: '\u23F1\uFE0E', label: 'Limite de session (5 h)' }, seven_day: { icon: '\u{1F5D3}\uFE0E', label: 'Limite hebdomadaire (7 jours)' } } as const
+// A clock for the window that counts in hours, a grid (a calendar) for the one that counts in days.
+// Plain text glyphs: an emoji would bring its own colors and size.
+const LIMITS = { five_hour: { icon: '◷', label: 'Limite de session (5 h)' }, seven_day: { icon: '▦', label: 'Limite hebdomadaire (7 jours)' } } as const
 const ORANGE = '#e08a3c'
 const CHEVRON = { closed: '⌄', open: '⌃' } as const // down to open, up to fold
 
@@ -71,7 +71,7 @@ export const register: Register = on => {
     const head = `${tokens(r.total)} sur ${tokens(r.window)}${r.compactsAt ? ` · compactage à ${tokens(r.compactsAt)}` : ''}`
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
-    const barWidth = inner - 2 // the fold button takes the last two cells of the line
+    const barWidth = inner - 6 // the fold button, a bordered `[ ⌄ ]`, takes the end of the line
     const now = await $.clock.now()
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
@@ -80,20 +80,21 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box flexDirection="column" borderStyle="round" borderColor="inactive" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Text wrap="truncate-end">
-              <Text bold>Contexte</Text>
-            </Text>
+            <Text bold>Contexte</Text>
             <Box flexDirection="row">
-              <Text wrap="truncate-start">
-                <Text dimColor>{`${head} `}</Text>
+              <Text dimColor wrap="truncate-start">{head}</Text>
+              <Box marginLeft={2}>
                 {heat ? <Text bold color="black" backgroundColor={heat}>{` ${r.percent}% `}</Text> : <Text dimColor>{`${r.percent}%`}</Text>}
-                <Text>{' '}</Text>
-              </Text>
-              {r.limits.length > 0 && <Text dimColor>{'│ limite '}</Text>}
+              </Box>
+              {r.limits.length > 0 && (
+                <Box marginLeft={2}>
+                  <Text dimColor>{'│  limite'}</Text>
+                </Box>
+              )}
               {r.limits.map(l => {
                 const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
                 return (
-                  <Box key={`limit-${l.kind}`} marginRight={1}>
+                  <Box key={`limit-${l.kind}`} marginLeft={2}>
                     <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
                     <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
                       <Text bold color="black" backgroundColor="white" wrap="truncate-end">
@@ -103,27 +104,35 @@ export const register: Register = on => {
                   </Box>
                 )
               })}
+              <Box marginLeft={2}>
+                <Button key="close" plain dimColor onPress={() => void hide($)}>
+                  ✕
+                </Button>
+              </Box>
             </Box>
           </Box>
           <Box flexDirection="row">
             <Box flexDirection="row" flexGrow={1}>
-            {cells(r, barWidth).map((c, i) => {
-              const onRight = at + c.text.length / 2 > barWidth / 2
-              at += c.text.length
-              return (
-                <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
-                  <Text color={c.color} backgroundColor={c.slice.background} wrap="truncate">{c.text.repeat(2)}</Text>
-                  <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                    <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
-                      {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
-                    </Text>
+              {cells(r, barWidth).map((c, i) => {
+                const onRight = at + c.text.length / 2 > barWidth / 2
+                at += c.text.length
+                return (
+                  <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                    {/* the glyphs overshoot and are clipped, so no ellipsis ends a short segment */}
+                    <Box width={0} flexGrow={1} height={1} overflow="hidden">
+                      <Text color={c.color} backgroundColor={c.slice.background} wrap="wrap">{c.text.repeat(3)}</Text>
+                    </Box>
+                    <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                      <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
+                        {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                      </Text>
+                    </Box>
                   </Box>
-                </Box>
-              )
-            })}
+                )
+              })}
             </Box>
             <Box marginLeft={1}>
-              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
+              <Button key="toggle-legend" onPress={() => void update($, isExpanded, v => !v)}>
                 {open ? CHEVRON.open : CHEVRON.closed}
               </Button>
             </Box>
@@ -147,6 +156,12 @@ export const register: Register = on => {
       </Box>
     )
   })
+}
+
+// The close button: hides the bar as /compact-token-bar does, and keeps the choice.
+async function hide($: EngineInterface) {
+  await update($, isHidden, () => true)
+  await $.store.set('isHidden', true).catch(() => {})
 }
 
 // Asks the engine for /context's breakdown, estimated locally (no token-count calls).

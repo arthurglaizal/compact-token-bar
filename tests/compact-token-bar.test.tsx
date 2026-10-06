@@ -104,8 +104,8 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: /204k sur 1M · compactage à 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '\u23F1\uFE0E 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: '\u{1F5D3}\uFE0E 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: /Limite de session \(5 h\) · 42% utilisé · remise à zéro dans 2 h/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^ ?.* · 5% utilisé/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
@@ -125,6 +125,19 @@ describe('compact-token-bar', () => {
     await band.press({ key: 'toggle-legend' })
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined()
     await band.unmount()
+  })
+
+  test('the cross closes the bar', async ($, on) => {
+    const { store } = engine(on)
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    await band.press({ key: 'close' })
+    expect(store.isHidden).toBe(true)
+    await band.unmount()
+    const again = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    expect(await again.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
+    await again.unmount()
   })
 
   test('refreshes after a main turn, not after a subagent turn', async ($, on) => {
