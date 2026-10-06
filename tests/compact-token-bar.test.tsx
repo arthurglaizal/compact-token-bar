@@ -97,11 +97,12 @@ describe('compact-token-bar', () => {
     // One line: the bar sits between the title and the figures, the chevron at the end.
     const at = layout(r, 700)
     expect(at.barX).toBeGreaterThan(40)
-    expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 200)
+    expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 100) // the figures keep their room
     expect(card).toContain('d="m4 9l8 8l8-8"') // the chevron, pointing down while folded
     expect(cardSvg(r, 700, true)).toContain('d="m4 15l8-8l8 8"')
     expect(card).toContain('>Context</text>')
-    expect(card).toContain('204k of 1M · compacts at 950k')
+    expect(card).toContain('204k of 950k') // against the compaction point, the real limit
+    expect(card).not.toContain('compacts at')
     expect(card).toContain('font-size="11"')
     expect(card).not.toContain('>messages <') // folded: no legend
     const opened = cardSvg(r, 700, true)
@@ -129,8 +130,8 @@ describe('compact-token-bar', () => {
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
+    expect(await band.find({ type: 'Text', text: /^204k of 950k$/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: '21%' })).toBeDefined() // 204k of 950k; grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
     expect(await band.find({ type: 'Text', text: '5h 42%' })).toBeDefined() // session limit
     expect(await band.find({ type: 'Text', text: 'week 91%' })).toBeDefined() // weekly limit
@@ -179,7 +180,7 @@ describe('compact-token-bar', () => {
     expect(store.isHidden).toBe(true)
     await band.unmount()
     const again = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await again.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
+    expect(await again.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await again.unmount()
   })
 
@@ -210,13 +211,13 @@ describe('compact-token-bar', () => {
     expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
     let band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await band.unmount()
 
     expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
     band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeDefined()
     await band.unmount()
   })
 
@@ -225,7 +226,7 @@ describe('compact-token-bar', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await band.unmount()
   })
 })

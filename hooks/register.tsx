@@ -69,8 +69,7 @@ export const register: Register = on => {
     if (inner < MIN_WIDTH) return rest
     const open = await read($, isExpanded)
 
-    const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
-    const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+    const { head, percent, level } = fill(r)
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
     const barWidth = inner - 3 // the fold chevron takes the end of the line
     const now = await $.clock.now()
@@ -170,7 +169,7 @@ export const register: Register = on => {
             <Box flexDirection="row">
               <Text dimColor wrap="truncate-start">{head}</Text>
               <Box marginLeft={2}>
-                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${r.percent}% `}</Text> : <Text dimColor>{`${r.percent}%`}</Text>}
+                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${percent}% `}</Text> : <Text dimColor>{`${percent}%`}</Text>}
               </Box>
               {r.limits.length > 0 && (
                 <Box marginLeft={2}>
@@ -291,13 +290,21 @@ export function barSvg(r: Reading, height: number) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="${height}" viewBox="0 0 1800 ${height}"><defs>${defs}</defs>${parts}</svg>`
 }
 
+// How full the window is, against the real limit: the point where auto-compaction runs, or the whole
+// window when it is off. "371k of 967k", 38%.
+export function fill(r: Reading) {
+  const limit = r.compactsAt ?? r.window
+  const level = r.total / limit
+  return { head: `${tokens(r.total)} of ${tokens(limit)}`, percent: Math.round(level * 100), level }
+}
+
 // The figures on the right of the line, as spans with the gap before each.
 function figures(r: Reading) {
-  const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+  const { head, percent, level } = fill(r)
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
   const context = [
-    { text: `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`, gap: 0 },
-    { text: `${r.percent}%`, gap: 12, color: heat(level) },
+    { text: head, gap: 0 },
+    { text: `${percent}%`, gap: 12, color: heat(level) },
   ]
   const limits = r.limits.length === 0 ? [] : [
     { text: '│', gap: 12 },
