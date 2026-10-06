@@ -1,8 +1,9 @@
 // Compact Claude Token: what is filling my context window?
 //   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, the window as one
-//   stacked bar. Colors are a neutral slate ramp and every category has its own texture (stripes,
-//   grid...), so the bar reads without color; messages are quiet dots on a grey ground. Hovering a segment shows its label. The detailed legend is folded by default: the
-//   chevron at the end of the bar opens it. Next to it, the session and weekly limits.
+//   stacked bar in a neutral slate ramp. On the desktop the header and the bar are one SVG (small text,
+//   striped categories, dotted messages); in a terminal, glyphs. Hovering a segment shows its label.
+//   The legend is folded by default: the chevron opens it. The header also shows the session and
+//   weekly limits; everything stays grey until a figure gets warm.
 //   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -77,34 +78,80 @@ export const register: Register = on => {
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
     let at = 0 // the column a segment starts at, to anchor its label on the side with room
-    // The terminal draws the bar in glyphs; the surfaces that have a vector element draw it as an SVG, with
-    // real stripes and dots.
+    // The terminal draws the bar in glyphs; the surfaces that have a vector element draw the header and the
+    // bar as one SVG, with small text and real stripes and dots.
     const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
-    // A picture has no hover of its own: a row of empty, keyed boxes lies over it and each one reveals its label.
-    let from = 0
-    const bar = Svg ? (
-      <Box flexDirection="column" flexGrow={1}>
-        <Svg source={barSvg(r, BAR_HEIGHT)} alt={barAlt(r)} />
-        <Box position="absolute" top={0} left={0} right={0} flexDirection="row" height={1}>
-          {cells(r, barWidth).map((c, i) => {
-            const onRight = from + c.text.length / 2 > barWidth / 2
-            from += c.text.length
-            return (
-              <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
-                <Box width={0} flexGrow={1} height={1} overflow="hidden">
-                  <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
-                </Box>
-                <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                  <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
-                    {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
-                  </Text>
+    if (Svg) {
+      const drawn = Math.round(barWidth * PX_PER_COLUMN)
+      let from = 0
+      return (
+        <Box flexDirection="column">
+          <Box flexDirection="column" borderStyle="round" borderColor="inactive" borderDimColor paddingX={1}>
+            <Box flexDirection="row">
+              <Box flexDirection="column" flexGrow={1}>
+                <Svg source={cardSvg(r, drawn)} alt={barAlt(r)} />
+                {/* A picture has no hover of its own: empty keyed boxes lie over it and reveal the labels. */}
+                {r.limits.length > 0 && (
+                  <Box key="limits" position="absolute" top={0} right={0} width={Math.min(40, barWidth)} height={1}>
+                    <Box width={0} flexGrow={1} height={1} overflow="hidden">
+                      <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
+                    </Box>
+                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+                      <Text color="black" backgroundColor="white" wrap="truncate-end">
+                        {` ${r.limits.map(l => `${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)}`).join('   ')} `}
+                      </Text>
+                    </Box>
+                  </Box>
+                )}
+                <Box position="absolute" top={1} left={0} right={0} flexDirection="row" height={1}>
+                  {cells(r, barWidth).map((c, i) => {
+                    const onRight = from + c.text.length / 2 > barWidth / 2
+                    from += c.text.length
+                    return (
+                      <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                        <Box width={0} flexGrow={1} height={1} overflow="hidden">
+                          <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
+                        </Box>
+                        <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                          <Text color="black" backgroundColor="white" wrap="truncate-end">
+                            {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                          </Text>
+                        </Box>
+                      </Box>
+                    )
+                  })}
                 </Box>
               </Box>
-            )
-          })}
+              <Box flexDirection="column" alignItems="center" marginLeft={1}>
+                <Button key="close" plain dimColor onPress={() => void hide($)}>
+                  ✕
+                </Button>
+                <Button key="toggle-legend" plain dimColor onPress={() => void update($, isExpanded, v => !v)}>
+                  {open ? CHEVRON.open : CHEVRON.closed}
+                </Button>
+              </Box>
+            </Box>
+            {open &&
+              legend(r, inner).map(line => (
+                <Box flexDirection="row">
+                  {line.map((sl, i) => (
+                    <Box flexDirection="row" marginLeft={i > 0 ? 3 : 0}>
+                      <Svg source={swatchSvg(r, sl)} alt=" " />
+                      <Text>
+                        <Text dimColor={sl.kind !== 'used'}>{` ${sl.name} `}</Text>
+                        <Text bold={sl.kind === 'used'}>{tokens(sl.tokens)}</Text>
+                        {sl.kind === 'used' && <Text dimColor>{` ${share(sl.tokens, r.window)}`}</Text>}
+                      </Text>
+                    </Box>
+                  ))}
+                </Box>
+              ))}
+          </Box>
+          {rest}
         </Box>
-      </Box>
-    ) : (
+      )
+    }
+    const bar = (
       <Box flexDirection="row" flexGrow={1}>
               {cells(r, barWidth).map((c, i) => {
                 const onRight = at + c.text.length / 2 > barWidth / 2
@@ -189,8 +236,15 @@ export const register: Register = on => {
   })
 }
 
-const BAR_HEIGHT = 16
-const BAR_WIDTH = 1800 // the drawing's own width: the surface scales it down to the room there is
+// The desktop card, in CSS pixels: the engine gives columns, not pixels, so the drawing is sized at an
+// estimate of a column's width; a drawing wider than its slot is scaled down to fit.
+const PX_PER_COLUMN = 8.4
+const FONT = 11
+const HEADER = 16
+const GAP = 6
+const BAR_HEIGHT = 22
+const TEXT = '#8b8b90'
+const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
 
 // "#rrggbb" mixed with the dark of the card, t in 0..1 of the way to it.
 function darken(hex: string, t: number) {
@@ -204,40 +258,78 @@ export function barAlt(r: Reading) {
   return `Context window: ${tokens(r.total)} of ${tokens(r.window)} used. ${r.slices.filter(s => s.kind === 'used').map(s => `${s.name} ${share(s.tokens, r.window)}`).join(', ')}`
 }
 
-// The bar as one SVG: each used category a striped pattern, messages dots, free space a thin line, the
-// compaction buffer a hatch. Positions are in the drawing's own units and the patterns keep their size.
-export function barSvg(r: Reading, height: number) {
-  const bar = cells(r, 1000)
+// The fill a slice is drawn with, as a <pattern> under `id`: each used category stripes at its own angle,
+// messages dots, the compaction buffer a hatch. The bar and the legend share it, so they always match.
+export function pattern(r: Reading, s: Slice, id: string) {
+  if (s.kind === 'free') return { def: '', fill: FREE }
+  if (s.kind === 'buffer') {
+    return { def: `<pattern id="${id}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="4" fill="${BUFFER}"/></pattern>`, fill: `url(#${id})` }
+  }
+  if (s.name === 'messages') {
+    return { def: `<pattern id="${id}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${darken(MESSAGES.color, 0.7)}"/><circle cx="2" cy="2" r="1" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
+  }
   const angles = [45, 135, 0, 90]
-  let used = 0
-  let at = 0
+  const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
+  return { def: `<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angles[Math.max(0, k) % angles.length]})"><rect width="5" height="5" fill="${darken(s.color, 0.6)}"/><rect width="2.5" height="5" fill="${s.color}"/></pattern>`, fill: `url(#${id})` }
+}
+
+// The bar alone, `width` by `height`, at (0, y).
+function barParts(r: Reading, width: number, y: number, height: number) {
   const defs: string[] = []
   const parts: string[] = []
-  bar.forEach((c, i) => {
-    const w = c.text.length
-    const x = `${(at * BAR_WIDTH) / 1000}`
-    const wd = `${(w * BAR_WIDTH) / 1000}`
-    at += w
+  let at = 0
+  cells(r, 1000).forEach((c, i) => {
+    const x = (at * width) / 1000
+    const w = (c.text.length * width) / 1000
+    at += c.text.length
     const tip = `<title>${esc(`${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)}`)}</title>`
     if (c.kind === 'free') {
-      parts.push(`<g>${tip}<rect x="${x}" y="${height / 2 - 0.5}" width="${wd}" height="1" fill="${FREE}"/></g>`)
+      parts.push(`<g>${tip}<rect x="${x}" y="${y + height / 2 - 0.5}" width="${w}" height="1" fill="${FREE}"/></g>`)
       return
     }
-    let fill: string
-    if (c.kind === 'buffer') {
-      defs.push(`<pattern id="p${i}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1" height="4" fill="${BUFFER}"/></pattern>`)
-      fill = `url(#p${i})`
-    } else if (c.slice.name === 'messages') {
-      defs.push(`<pattern id="p${i}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${darken(MESSAGES.color, 0.7)}"/><circle cx="2" cy="2" r="1" fill="${MESSAGES.color}"/></pattern>`)
-      fill = `url(#p${i})`
-    } else {
-      const angle = angles[used++ % angles.length]
-      defs.push(`<pattern id="p${i}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})"><rect width="5" height="5" fill="${darken(c.color, 0.6)}"/><rect width="2.5" height="5" fill="${c.color}"/></pattern>`)
-      fill = `url(#p${i})`
-    }
-    parts.push(`<g>${tip}<rect x="${x}" y="0" width="${wd}" height="${height}" fill="${fill}"/></g>`)
+    const p = pattern(r, c.slice, `p${i}`)
+    defs.push(p.def)
+    parts.push(`<g>${tip}<rect x="${x}" y="${y}" width="${w}" height="${height}" fill="${p.fill}"/></g>`)
   })
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BAR_WIDTH}" height="${height}" viewBox="0 0 ${BAR_WIDTH} ${height}"><style>g:hover{opacity:.8}rect{shape-rendering:crispEdges}</style><defs>${defs.join('')}</defs>${parts.join('')}</svg>`
+  return { defs: defs.join(''), parts: parts.join('') }
+}
+
+// The bar as one SVG, `height` tall and drawn 1800 wide.
+export function barSvg(r: Reading, height: number) {
+  const { defs, parts } = barParts(r, 1800, 0, height)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="${height}" viewBox="0 0 1800 ${height}"><defs>${defs}</defs>${parts}</svg>`
+}
+
+// The desktop card's header and bar, `width` pixels wide: small grey text over a tall bar.
+export function cardSvg(r: Reading, width: number) {
+  const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+  const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
+  const span = (text: string, color?: string, gap = 0) =>
+    `<tspan${gap ? ` dx="${gap}"` : ''} fill="${color ?? TEXT}"${color ? ' font-weight="600"' : ''}>${esc(text)}</tspan>`
+  const right = [
+    span(`${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`),
+    span(`${r.percent}%`, heat(level), 12),
+    ...(r.limits.length > 0 ? [span('│', undefined, 12), span('limit', undefined, 8)] : []),
+    ...r.limits.map(l => span(`${LIMITS[l.kind].icon} ${l.percent}%`, heat(l.percent / 100), 10)),
+  ].join('')
+  const base = HEADER - 4
+  const height = HEADER + GAP + BAR_HEIGHT
+  const { defs, parts } = barParts(r, width, HEADER + GAP, BAR_HEIGHT)
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
+    `<defs>${defs}</defs>` +
+    `<text x="0" y="${base}" fill="${TEXT}">Context</text>` +
+    `<text x="${width}" y="${base}" text-anchor="end" xml:space="preserve">${right}</text>` +
+    parts +
+    `</svg>`
+  )
+}
+
+// A legend swatch, the slice's own fill in a small square.
+export function swatchSvg(r: Reading, s: Slice) {
+  const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, `s${r.slices.indexOf(s)}`) // ids unique per slice, should two swatches ever share a page
+  const body = s.kind === 'free' ? `<rect x="0" y="5.5" width="12" height="1" fill="${FREE}"/>` : `<rect width="12" height="12" fill="${p.fill}"/>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><defs>${p.def}</defs>${body}</svg>`
 }
 
 // The close button: hides the bar as /compact-token-bar does, and keeps the choice.

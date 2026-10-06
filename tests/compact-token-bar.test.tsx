@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barSvg, cells, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barSvg, cardSvg, cells, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -92,6 +92,14 @@ describe('compact-token-bar', () => {
     expect(svg.match(/<pattern /g)!.length).toBe(5) // four used rows and the buffer; free space is a line
     expect(svg).not.toMatch(/<script|on\w+=|transparent/)
     expect(svg).toContain('viewBox="0 0 1800 14"')
+    // The desktop card: small grey text over the bar, warm figures colored.
+    const card = cardSvg(r, 700)
+    expect(card).toContain('>Context</text>')
+    expect(card).toContain('204k of 1M · compacts at 950k')
+    expect(card).toContain('font-size="11"')
+    // A legend swatch carries the same pattern as its segment in the bar.
+    const msgs = r.slices.find(s => s.name === 'messages')!
+    expect(swatchSvg(r, msgs)).toContain('<circle')
     expect(resets(undefined, 0)).toBe('')
     expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
     expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
@@ -126,6 +134,10 @@ describe('compact-token-bar', () => {
     const svg = await band.find({ type: 'Svg' })
     expect(svg).toBeDefined()
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the label of a segment, over the picture
+    expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used/ })).toBeDefined() // the limits' label
+    // Opened, the legend draws each swatch with the bar's own pattern.
+    await band.press({ key: 'toggle-legend' })
+    expect(await band.find({ type: 'Text', text: / messages / })).toBeDefined()
     await band.unmount()
   })
 
