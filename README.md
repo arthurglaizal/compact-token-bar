@@ -12,9 +12,19 @@ It stays neutral by default. A figure only turns orange, then red, when it gets 
 
 ## What it shows
 
+The same single line comes in two designs.
+
+**Desktop app**: the design in the demo above, and the reference. Small grey text, real stripes and dots drawn as SVG, tooltips on hover.
+
+**Terminal**: the same line drawn with characters, at the terminal's own text size. It looks like this:
+
 ```txt
 Context  ▆▆⠿⠿⠿⠿────────────▃   491k of 967k  51%  ≍  │ limit  9%  4%  ∨  ×
 ```
+
+Tooltips are less reliable in a terminal, so nothing essential depends on them.
+
+From left to right:
 
 - **The bar**: what fills the window (system prompt, tools, MCP tools, memory files, skills, messages), then free space and the compaction buffer. Each category has its own pattern, so it reads without color.
 - **The fill**: tokens used against the real limit, the point where auto-compaction runs, and the matching percentage.
@@ -35,12 +45,6 @@ Once installed, the bar appears above the prompt in every new session. It refres
 | Compact now | the compact button after the percentage |
 | See the details | the chevron |
 | See what a segment or a limit is | hover it |
-
-## Desktop and terminal
-
-The desktop app is the reference design: small text, real stripes and dots drawn as SVG, tooltips on hover.
-
-The terminal shows the same single line with characters (`▆`, `⠿`, `▃`, `─`) at the terminal's own text size. Tooltips are less reliable there, so nothing essential depends on them.
 
 ## Limitations
 
