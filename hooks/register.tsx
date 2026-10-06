@@ -80,10 +80,16 @@ export const register: Register = on => {
     // bar as one SVG, with small text and real stripes and dots.
     const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
     if (Svg) {
+      // One flex row, so nothing overlaps: the title and the bar, then the figures, the compact button, the
+      // limits and the two card buttons, each a box of its own. Only the bar's width is estimated.
       const drawn = Math.round((inner - 6) * PX_PER_COLUMN) // the chevron and the cross take the last six cells
-      const at = layout(r, drawn)
+      const { context, limits } = figures(r)
+      const contextWidth = Math.ceil(spanWidth(context)) + 4
+      const limitsWidth = limits.length ? Math.ceil(spanWidth(limits)) + 4 : 0
+      const rowWidth = Math.max(160, drawn - contextWidth - limitsWidth - Math.round(4 * PX_PER_COLUMN))
+      const barX = titleWidth()
       const col = (px: number) => Math.round(px / PX_PER_COLUMN)
-      const barCols = Math.max(1, col(at.barWidth))
+      const barCols = Math.max(1, col(rowWidth - barX))
       let from = 0
       // A button of the card: a stroked icon in the text's grey, centered in its own box, an empty button over
       // the whole box so the hover area sits right around the icon, and a short tooltip.
@@ -103,11 +109,11 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column">
           <Box flexDirection="column" paddingX={1}>
-            <Box flexDirection="row">
-              <Box flexDirection="column" flexGrow={1}>
-                <Svg source={cardSvg(r, drawn, open)} alt={barAlt(r)} />
-                {/* A picture has no hover of its own: empty keyed boxes lie over it and reveal the labels. */}
-                <Box position="absolute" top={0} left={col(at.barX)} width={barCols} flexDirection="row" height={1}>
+            <Box flexDirection="row" alignItems="center">
+              <Box flexShrink={1}>
+                <Svg source={barRowSvg(r, rowWidth)} alt={barAlt(r)} />
+                {/* A picture has no hover of its own: empty keyed boxes lie over the bar and reveal the labels. */}
+                <Box position="absolute" top={0} left={col(barX)} width={barCols} flexDirection="row" height={1}>
                   {cells(r, barCols).map((c, i) => {
                     const onRight = from + c.text.length / 2 > barCols / 2
                     from += c.text.length
@@ -116,11 +122,11 @@ export const register: Register = on => {
                         <Box width={0} flexGrow={1} height={1} overflow="hidden">
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
-                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }} flexDirection="row" alignItems="center">
-                          {/* The label in soft greys, after the segment's own swatch. */}
-                          <Svg source={swatchSvg(r, c.slice)} alt=" " width={12} height={12} />
+                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                          {/* The label in soft greys, after a reminder of the segment's pattern. */}
                           <Text wrap="truncate-end">
-                            <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
+                            <Text color={swatchColor(c.slice)}>{`${swatchGlyph(r, c.slice)} `}</Text>
+                            <Text color={TIP.name}>{`${c.slice.name} `}</Text>
                             <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
                             <Text color={TIP.dim}>{` ${share(c.slice.tokens, r.window)}`}</Text>
                           </Text>
@@ -129,30 +135,29 @@ export const register: Register = on => {
                     )
                   })}
                 </Box>
-                {r.limits.length > 0 && (
-                  <Box key="limits" position="absolute" top={0} right={col(drawn - at.figuresEnd)} width={Math.max(1, col(at.limitsWidth))} height={1}>
-                    <Box width={0} flexGrow={1} height={1} overflow="hidden">
-                      <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
-                    </Box>
-                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-                      <Text wrap="truncate-end">
-                        {r.limits.map((l, i) => (
-                          <Text>
-                            {i > 0 && <Text color={TIP.dim}>{'   '}</Text>}
-                            <Text color={TIP.name}>{`${LIMITS[l.kind].label} `}</Text>
-                            <Text color={TIP.figure} bold>{`${l.percent}%`}</Text>
-                            <Text color={TIP.dim}>{`${resets(l.resetsAt, now)}`}</Text>
-                          </Text>
-                        ))}
-                      </Text>
-                    </Box>
-                  </Box>
-                )}
-                {/* Next to the percentage, in the room the picture leaves for it. */}
-                <Box position="absolute" top={0} left={Math.max(0, col(at.compactX) - 1)}>
-                  {iconButton({ key: 'compact', icon: icon('compact'), tip: 'Compact the conversation now', press: () => void compactNow($) })}
-                </Box>
               </Box>
+              <Box flexGrow={1} />
+              <Svg source={spansSvg(context, contextWidth)} alt={context.map(x => x.text).join(' ')} />
+              <Box marginLeft={1}>
+                {iconButton({ key: 'compact', icon: icon('compact'), tip: 'Compact the conversation now', press: () => void compactNow($) })}
+              </Box>
+              {limits.length > 0 && (
+                <Box key="limits" marginLeft={1}>
+                  <Svg source={spansSvg(limits, limitsWidth)} alt={limits.map(x => x.text).join(' ')} />
+                  <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+                    <Text wrap="truncate-end">
+                      {r.limits.map((l, i) => (
+                        <Text>
+                          {i > 0 && <Text color={TIP.dim}>{'   '}</Text>}
+                          <Text color={TIP.name}>{`${LIMITS[l.kind].label} `}</Text>
+                          <Text color={TIP.figure} bold>{`${l.percent}%`}</Text>
+                          <Text color={TIP.dim}>{`${resets(l.resetsAt, now)}`}</Text>
+                        </Text>
+                      ))}
+                    </Text>
+                  </Box>
+                </Box>
+              )}
               <Box marginLeft={1}>
                 {iconButton({ key: 'toggle-legend', icon: icon(open ? 'up' : 'down'), tip: open ? 'Hide details' : 'Show details', press: () => void update($, isExpanded, v => !v) })}
               </Box>
@@ -160,6 +165,7 @@ export const register: Register = on => {
                 {iconButton({ key: 'close', icon: icon('close'), tip: 'Close (/compact-token-bar brings it back)', press: () => void hide($) })}
               </Box>
             </Box>
+            {open && <Svg source={legendSvg(r, drawn)} alt={legendAlt(r)} />}
           </Box>
           {rest}
         </Box>
@@ -255,10 +261,9 @@ export const register: Register = on => {
 const PX_PER_COLUMN = 8.4
 const FONT = 11
 const TITLE_FONT = 13 // the title a little larger than the figures
-const ROW = 20 // the card's one line: the title, the bar and the figures
+const ROW = 20 // the height of the card's line
 const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
-const COMPACT_ROOM = 30 // the gap after the percentage, where the compact button sits
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const TIP = { name: '#b9b9be', figure: '#e2e2e6', dim: '#7d7d83' } // the tooltips' soft greys, on the app's dark card
@@ -335,61 +340,68 @@ export function icon(kind: 'down' | 'up' | 'close' | 'compact') {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path d="${d}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 }
 
-// The figures on the right of the line, as spans with the gap before each.
-function figures(r: Reading) {
+// The figures of the line, as spans with the gap before each: the context's fill, then the limits.
+export function figures(r: Reading) {
   const { head, percent, level } = fill(r)
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
-  const context = [
+  const context: Span[] = [
     { text: head, gap: 0 },
     { text: `${percent}%`, gap: 12, color: heat(level) },
-    { text: '', gap: COMPACT_ROOM }, // where the compact button sits
   ]
-  const limits = r.limits.length === 0 ? [] : [
+  const limits: Span[] = r.limits.length === 0 ? [] : [
     { text: '│', gap: 0 },
-    { text: 'limit', gap: 8 },
+    { text: 'limit', gap: 10 },
     ...r.limits.map(l => ({ text: `${l.percent}%`, gap: 10, color: heat(l.percent / 100) })), // which is which: the hover says
   ]
   return { context, limits }
 }
 
-const spanWidth = (ss: { text: string; gap: number }[]) => ss.reduce((w, x) => w + x.gap + x.text.length * CHAR_WIDTH, 0)
+type Span = { text: string; gap: number; color?: string }
 
-// Where each part of the line sits in a card `width` pixels wide: the title, then the bar in all the room
-// there is, then the figures at the end.
-export function layout(r: Reading, width: number) {
-  const { context, limits } = figures(r)
-  const figuresEnd = width - 2
-  const compactX = figuresEnd - spanWidth(limits) - COMPACT_ROOM / 2 // the middle of the room after the percent
-  const limitsWidth = spanWidth(limits)
-  const figuresWidth = spanWidth(context) + limitsWidth
-  const barX = 'Context'.length * CHAR_WIDTH * (TITLE_FONT / FONT) + 14
-  const barWidth = Math.max(40, figuresEnd - figuresWidth - 16 - barX)
-  return { barX, barWidth, figuresEnd, limitsWidth, compactX }
-}
+export const spanWidth = (ss: Span[]) => ss.reduce((w, x) => w + x.gap + x.text.length * CHAR_WIDTH, 0)
 
-// The desktop card as one SVG `width` pixels wide: one line with the title, the bar, the figures and the
-// when open the legend below, its swatches drawn with the bar's own patterns.
-export function cardSvg(r: Reading, width: number, open = false) {
-  const at = layout(r, width)
-  const { context, limits } = figures(r)
-  const spans = [...context, ...limits]
+const titleWidth = () => Math.round('Context'.length * CHAR_WIDTH * (TITLE_FONT / FONT) + 14)
+
+const svgOpen = (width: number, height: number) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">`
+
+// Spans of small grey text, right-aligned in a box `width` wide: any slack in the estimate becomes space on
+// the left, never an overlap.
+export function spansSvg(spans: Span[], width: number) {
+  const body = spans
     .map(x => `<tspan${x.gap ? ` dx="${x.gap}"` : ''} fill="${x.color ?? TEXT}"${x.color ? ' font-weight="600"' : ''}>${esc(x.text)}</tspan>`)
     .join('')
-  const base = 14
-  const barY = (ROW - BAR_HEIGHT) / 2
-  const { defs, parts } = barParts(r, at.barWidth, barY, BAR_HEIGHT, at.barX)
-  const legendSvg = open ? legendParts(r, width, ROW + 10) : { defs: '', parts: '', height: 0 }
-  const height = ROW + legendSvg.height
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
-    `<defs>${defs}${legendSvg.defs}</defs>` +
-    `<text x="0" y="${base}" fill="${TEXT}" font-size="${TITLE_FONT}">Context</text>` +
-    parts +
-    `<text x="${at.figuresEnd}" y="${base}" text-anchor="end" xml:space="preserve">${spans}</text>` +
-    legendSvg.parts +
-    `</svg>`
-  )
+  return `${svgOpen(width, ROW)}<text x="${width}" y="14" text-anchor="end" xml:space="preserve">${body}</text></svg>`
 }
+
+// The title and the bar, `width` wide: "Context", then the bar in the rest of the room.
+export function barRowSvg(r: Reading, width: number) {
+  const barX = titleWidth()
+  const { defs, parts } = barParts(r, Math.max(20, width - barX), (ROW - BAR_HEIGHT) / 2, BAR_HEIGHT, barX)
+  return `${svgOpen(width, ROW)}<defs>${defs}</defs><text x="0" y="14" fill="${TEXT}" font-size="${TITLE_FONT}">Context</text>${parts}</svg>`
+}
+
+// The legend alone, `width` wide, its swatches drawn with the bar's own patterns.
+export function legendSvg(r: Reading, width: number) {
+  const { defs, parts, height } = legendParts(r, width, 6)
+  return `${svgOpen(width, height + 6)}<defs>${defs}</defs>${parts}</svg>`
+}
+
+export function legendAlt(r: Reading) {
+  return r.slices.map(s => `${s.name} ${tokens(s.tokens)}`).join(', ')
+}
+
+// A reminder of a segment's pattern in text, for the tooltips: a hatched square at the stripes' angle,
+// five dots for messages, a line for free space.
+export function swatchGlyph(r: Reading, s: Slice) {
+  if (s.kind === 'free') return '─'
+  if (s.kind === 'buffer') return '▨'
+  if (s.name === 'messages') return '⁙'
+  const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
+  return ['▨', '▧', '▤', '▥'][Math.max(0, k) % 4]!
+}
+
+const swatchColor = (s: Slice) => (s.kind === 'used' ? (s.name === 'messages' ? '#8e96a3' : s.color) : FREE)
 
 const LEGEND_LINE = 18
 const CHAR = 6.4 // an estimate of a character's width at FONT, generous so items never overlap

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barSvg, cardSvg, cells, icon, layout, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barRowSvg, barSvg, cells, figures, icon, legendSvg, spanWidth, spansSvg, swatchGlyph, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -92,30 +92,33 @@ describe('compact-token-bar', () => {
     expect(svg.match(/<pattern /g)!.length).toBe(5) // four used rows and the buffer; free space is a line
     expect(svg).not.toMatch(/<script|on\w+=|transparent/)
     expect(svg).toContain('viewBox="0 0 1800 14"')
-    // The desktop card: small grey text over the bar, warm figures colored.
-    const card = cardSvg(r, 700)
-    // One line: the bar sits between the title and the figures, the chevron at the end.
-    const at = layout(r, 700)
-    expect(at.barX).toBeGreaterThan(40)
-    expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 100) // the figures keep their room
-    expect(card).not.toContain('<path') // the buttons sit beside the picture, not in it
+    // The desktop row, in pieces laid out side by side: the title and the bar, then the figures.
+    const row = barRowSvg(r, 500)
+    expect(row).toContain('font-size="13">Context</text>') // the title, a little larger
+    expect(row).not.toContain('<path') // the buttons sit beside the pictures, not in them
+    const { context, limits } = figures(r)
+    const fig = spansSvg(context, Math.ceil(spanWidth(context)) + 4)
+    expect(fig).toContain('204k of 950k') // against the compaction point, the real limit
+    expect(fig).not.toContain('compacts at')
+    expect(fig).toContain('font-size="11"')
+    expect(limits).toEqual([]) // this reading has no limits
+    expect(figures(toReading(BREAKDOWN, [{ kind: 'five_hour', percentUsed: 42 }, { kind: 'seven_day', percentUsed: 91 }])).limits.map(x => x.text)).toEqual(['│', 'limit', '42%', '91%']) // bare figures: the hover names them
     expect(icon('down')).toContain('d="m4 9l8 8l8-8"') // the person's chevron
     expect(icon('close')).toContain('stroke="#8b8b90"') // the cross in the same grey
-    expect(layout(r, 700).compactX).toBeGreaterThan(layout(r, 700).barX + layout(r, 700).barWidth) // the compact button sits after the bar, by the percentage
-    expect(card).toContain('>Context</text>')
-    expect(card).toContain('204k of 950k') // against the compaction point, the real limit
-    expect(card).not.toContain('compacts at')
-    expect(card).toContain('font-size="11"')
-    expect(card).toContain('font-size="13">Context</text>') // the title, a little larger
-    expect(card).not.toContain('>messages <') // folded: no legend
-    const opened = cardSvg(r, 700, true)
+    const opened = legendSvg(r, 700)
     expect(opened).toContain('>messages </tspan>')
     expect(opened).toContain('>186k</tspan>')
-    expect((opened.match(/<circle/g) ?? []).length).toBe(4) // the quincunx of messages (two dots a tile), in the bar and in its swatch
+    expect((opened.match(/<circle/g) ?? []).length).toBe(2) // the quincunx of messages in its swatch
     // A share under 0.1% is escaped: a bare "<" would make the picture fail to load.
-    const tiny = cardSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700, true)
+    const tiny = legendSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700)
     expect(tiny).toContain('&lt;0.1%')
     expect(tiny).not.toMatch(/> ?<0\.1%/)
+    // The tooltips recall each segment's pattern in text.
+    expect(swatchGlyph(r, r.slices.find(s => s.name === 'messages')!)).toBe('⁙')
+    expect(swatchGlyph(r, r.slices.find(s => s.kind === 'free')!)).toBe('─')
+    // A plan with only a weekly window shows that one alone.
+    expect(figures(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 4 }])).limits.map(x => x.text)).toEqual(['│', 'limit', '4%'])
+    expect(figures(toReading(BREAKDOWN, [])).limits).toEqual([]) // none reported, no limits at all
     // A legend swatch carries the same pattern as its segment in the bar.
     const msgs = r.slices.find(s => s.name === 'messages')!
     expect(swatchSvg(r, msgs)).toContain('<circle')
