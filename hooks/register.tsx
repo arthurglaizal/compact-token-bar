@@ -24,7 +24,7 @@ const GLYPH = { free: '─', buffer: '▃' } as const
 // Each window named by its span in words: icons did not say which was which.
 const LIMITS = { five_hour: { short: '5h', label: 'Session limit (5 h)' }, seven_day: { short: 'week', label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
-const CHEVRON = { closed: '▽', open: '△' } as const // outlined triangles: down to open, up to fold
+const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -80,7 +80,7 @@ export const register: Register = on => {
     // bar as one SVG, with small text and real stripes and dots.
     const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
     if (Svg) {
-      const drawn = Math.round((inner - 2) * PX_PER_COLUMN) // the close cross takes the last two cells
+      const drawn = Math.round((inner - 4) * PX_PER_COLUMN) // the chevron and the cross take the last four cells
       const at = layout(r, drawn)
       const col = (px: number) => Math.round(px / PX_PER_COLUMN)
       const barCols = Math.max(1, col(at.barWidth))
@@ -122,12 +122,12 @@ export const register: Register = on => {
                     </Box>
                   </Box>
                 )}
-                {/* The chevron is drawn in the picture; an empty button over it takes the press. */}
-                <Box position="absolute" top={0} right={0} height={1}>
-                  <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
-                    {'\u00A0\u00A0'}
-                  </Button>
-                </Box>
+              </Box>
+              {/* Two buttons of one design: the same glyph weight, color and hover. */}
+              <Box marginLeft={1}>
+                <Button key="toggle-legend" plain dimColor onPress={() => void update($, isExpanded, v => !v)}>
+                  {open ? CHEVRON.open : CHEVRON.closed}
+                </Button>
               </Box>
               <Box marginLeft={1}>
                 <Button key="close" plain dimColor onPress={() => void hide($)}>
@@ -230,7 +230,7 @@ export const register: Register = on => {
 const PX_PER_COLUMN = 8.4
 const FONT = 11
 const TITLE_FONT = 13 // the title a little larger than the figures
-const ROW = 20 // the card's one line: the title, the bar, the figures and the chevron
+const ROW = 20 // the card's one line: the title, the bar and the figures
 const BAR_HEIGHT = 15 // a multiple of the dots' step, so no row of dots is cut
 const DOT_STEP = 8 // dots in quincunx: one high, one low, every 8 px
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
@@ -319,20 +319,19 @@ function figures(r: Reading) {
 const spanWidth = (ss: { text: string; gap: number }[]) => ss.reduce((w, x) => w + x.gap + x.text.length * CHAR_WIDTH, 0)
 
 // Where each part of the line sits in a card `width` pixels wide: the title, then the bar in all the room
-// there is, then the figures, then the chevron at the end.
+// there is, then the figures at the end.
 export function layout(r: Reading, width: number) {
   const { context, limits } = figures(r)
-  const chevronX = width - 12
-  const figuresEnd = chevronX - 12
+  const figuresEnd = width - 2
   const limitsWidth = spanWidth(limits)
   const figuresWidth = spanWidth(context) + limitsWidth
   const barX = 'Context'.length * CHAR_WIDTH * (TITLE_FONT / FONT) + 14
   const barWidth = Math.max(40, figuresEnd - figuresWidth - 16 - barX)
-  return { barX, barWidth, figuresEnd, limitsWidth, chevronX }
+  return { barX, barWidth, figuresEnd, limitsWidth }
 }
 
 // The desktop card as one SVG `width` pixels wide: one line with the title, the bar, the figures and the
-// chevron, and when open the legend below, its swatches drawn with the bar's own patterns.
+// when open the legend below, its swatches drawn with the bar's own patterns.
 export function cardSvg(r: Reading, width: number, open = false) {
   const at = layout(r, width)
   const { context, limits } = figures(r)
@@ -344,15 +343,12 @@ export function cardSvg(r: Reading, width: number, open = false) {
   const { defs, parts } = barParts(r, at.barWidth, barY, BAR_HEIGHT, at.barX)
   const legendSvg = open ? legendParts(r, width, ROW + 10) : { defs: '', parts: '', height: 0 }
   const height = ROW + legendSvg.height
-  // The chevron of the person's own drawing (a 24 grid, scaled to 12): down to open, up to fold.
-  const chevron = `<path transform="translate(${at.chevronX} 4) scale(0.5)" fill="none" stroke="${TEXT}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="${open ? 'm4 15l8-8l8 8' : 'm4 9l8 8l8-8'}"/>`
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
     `<defs>${defs}${legendSvg.defs}</defs>` +
     `<text x="0" y="${base}" fill="${TEXT}" font-size="${TITLE_FONT}">Context</text>` +
     parts +
     `<text x="${at.figuresEnd}" y="${base}" text-anchor="end" xml:space="preserve">${spans}</text>` +
-    chevron +
     legendSvg.parts +
     `</svg>`
   )

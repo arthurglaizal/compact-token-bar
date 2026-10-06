@@ -98,8 +98,7 @@ describe('compact-token-bar', () => {
     const at = layout(r, 700)
     expect(at.barX).toBeGreaterThan(40)
     expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 100) // the figures keep their room
-    expect(card).toContain('d="m4 9l8 8l8-8"') // the chevron, pointing down while folded
-    expect(cardSvg(r, 700, true)).toContain('d="m4 15l8-8l8 8"')
+    expect(card).not.toContain('<path') // the chevron is a button beside the picture, not drawn in it
     expect(card).toContain('>Context</text>')
     expect(card).toContain('204k of 950k') // against the compaction point, the real limit
     expect(card).not.toContain('compacts at')
