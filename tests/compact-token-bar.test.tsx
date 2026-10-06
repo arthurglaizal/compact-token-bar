@@ -97,6 +97,11 @@ describe('compact-token-bar', () => {
     expect(card).toContain('>Context</text>')
     expect(card).toContain('204k of 1M · compacts at 950k')
     expect(card).toContain('font-size="11"')
+    expect(card).not.toContain('>messages <') // folded: no legend
+    const opened = cardSvg(r, 700, true)
+    expect(opened).toContain('>messages </tspan>')
+    expect(opened).toContain('>186k</tspan>')
+    expect((opened.match(/<circle/g) ?? []).length).toBe(2) // the dots of messages, in the bar and in its swatch
     // A legend swatch carries the same pattern as its segment in the bar.
     const msgs = r.slices.find(s => s.name === 'messages')!
     expect(swatchSvg(r, msgs)).toContain('<circle')
@@ -117,8 +122,8 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: '5h 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: 'week 91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
@@ -135,9 +140,9 @@ describe('compact-token-bar', () => {
     expect(svg).toBeDefined()
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the label of a segment, over the picture
     expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used/ })).toBeDefined() // the limits' label
-    // Opened, the legend draws each swatch with the bar's own pattern.
+    // Opened, the legend is drawn in the same picture, each swatch with the bar's own pattern.
     await band.press({ key: 'toggle-legend' })
-    expect(await band.find({ type: 'Text', text: / messages / })).toBeDefined()
+    expect(await band.find({ type: 'Svg' })).toBeDefined()
     await band.unmount()
   })
 

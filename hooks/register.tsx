@@ -17,13 +17,12 @@ const RAMP = ['#566178', '#a9b3c6'] as const
 // Lower blocks, so the bar is a little shorter than a line of text and has no gaps between neighbours.
 // Used rows are solid, messages (the row that grows) are quiet dots, the buffer a low band.
 const USED = '▆'
-const MESSAGES = { color: '#8e99ad', glyph: '⠿' } as const
+const MESSAGES = { color: '#dfe3ea', glyph: '⠿', ground: '#2a2c31' } as const // small white dots on a very light grey
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
-// A clock for the window that counts in hours, a grid (a calendar) for the one that counts in days.
-// Plain text glyphs: an emoji would bring its own colors and size.
-const LIMITS = { five_hour: { icon: '◷', label: 'Session limit (5 h)' }, seven_day: { icon: '▦', label: 'Weekly limit (7 days)' } } as const
+// Each window named by its span in words: icons did not say which was which.
+const LIMITS = { five_hour: { short: '5h', label: 'Session limit (5 h)' }, seven_day: { short: 'week', label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
 const CHEVRON = { closed: '▽', open: '△' } as const // outlined triangles: down to open, up to fold
 
@@ -89,7 +88,7 @@ export const register: Register = on => {
           <Box flexDirection="column" borderStyle="round" borderColor="inactive" borderDimColor paddingX={1}>
             <Box flexDirection="row">
               <Box flexDirection="column" flexGrow={1}>
-                <Svg source={cardSvg(r, drawn)} alt={barAlt(r)} />
+                <Svg source={cardSvg(r, drawn, open)} alt={barAlt(r)} />
                 {/* A picture has no hover of its own: empty keyed boxes lie over it and reveal the labels. */}
                 {r.limits.length > 0 && (
                   <Box key="limits" position="absolute" top={0} right={0} width={Math.min(40, barWidth)} height={1}>
@@ -131,21 +130,6 @@ export const register: Register = on => {
                 </Button>
               </Box>
             </Box>
-            {open &&
-              legend(r, inner).map(line => (
-                <Box flexDirection="row">
-                  {line.map((sl, i) => (
-                    <Box flexDirection="row" marginLeft={i > 0 ? 3 : 0}>
-                      <Svg source={swatchSvg(r, sl)} alt=" " />
-                      <Text>
-                        <Text dimColor={sl.kind !== 'used'}>{` ${sl.name} `}</Text>
-                        <Text bold={sl.kind === 'used'}>{tokens(sl.tokens)}</Text>
-                        {sl.kind === 'used' && <Text dimColor>{` ${share(sl.tokens, r.window)}`}</Text>}
-                      </Text>
-                    </Box>
-                  ))}
-                </Box>
-              ))}
           </Box>
           {rest}
         </Box>
@@ -191,7 +175,7 @@ export const register: Register = on => {
                 const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
                 return (
                   <Box key={`limit-${l.kind}`} marginLeft={2}>
-                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
+                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].short} ${l.percent}%`}</Text>
                     <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
                       <Text bold color="black" backgroundColor="white" wrap="truncate-end">
                         {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
@@ -242,7 +226,7 @@ const PX_PER_COLUMN = 8.4
 const FONT = 11
 const HEADER = 16
 const GAP = 6
-const BAR_HEIGHT = 22
+const BAR_HEIGHT = 20 // a multiple of the dots' 5 px step, so no row of dots is cut
 const TEXT = '#8b8b90'
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
 
@@ -260,13 +244,14 @@ export function barAlt(r: Reading) {
 
 // The fill a slice is drawn with, as a <pattern> under `id`: each used category stripes at its own angle,
 // messages dots, the compaction buffer a hatch. The bar and the legend share it, so they always match.
-export function pattern(r: Reading, s: Slice, id: string) {
+export function pattern(r: Reading, s: Slice, id: string, y = 0) {
   if (s.kind === 'free') return { def: '', fill: FREE }
   if (s.kind === 'buffer') {
     return { def: `<pattern id="${id}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="4" fill="${BUFFER}"/></pattern>`, fill: `url(#${id})` }
   }
   if (s.name === 'messages') {
-    return { def: `<pattern id="${id}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${darken(MESSAGES.color, 0.7)}"/><circle cx="2" cy="2" r="1" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
+    // Whole dots only: the tile starts where the shape does, and the shape is a whole number of tiles tall.
+    return { def: `<pattern id="${id}" x="0" y="${y}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${MESSAGES.ground}"/><circle cx="2.5" cy="2.5" r="1.3" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
   }
   const angles = [45, 135, 0, 90]
   const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
@@ -287,7 +272,7 @@ function barParts(r: Reading, width: number, y: number, height: number) {
       parts.push(`<g>${tip}<rect x="${x}" y="${y + height / 2 - 0.5}" width="${w}" height="1" fill="${FREE}"/></g>`)
       return
     }
-    const p = pattern(r, c.slice, `p${i}`)
+    const p = pattern(r, c.slice, `p${i}`, y)
     defs.push(p.def)
     parts.push(`<g>${tip}<rect x="${x}" y="${y}" width="${w}" height="${height}" fill="${p.fill}"/></g>`)
   })
@@ -300,8 +285,9 @@ export function barSvg(r: Reading, height: number) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="${height}" viewBox="0 0 1800 ${height}"><defs>${defs}</defs>${parts}</svg>`
 }
 
-// The desktop card's header and bar, `width` pixels wide: small grey text over a tall bar.
-export function cardSvg(r: Reading, width: number) {
+// The desktop card's header, bar and, when open, legend, `width` pixels wide: small grey text, a tall bar,
+// and legend swatches drawn with the bar's own patterns.
+export function cardSvg(r: Reading, width: number, open = false) {
   const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
   const span = (text: string, color?: string, gap = 0) =>
@@ -310,19 +296,59 @@ export function cardSvg(r: Reading, width: number) {
     span(`${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`),
     span(`${r.percent}%`, heat(level), 12),
     ...(r.limits.length > 0 ? [span('│', undefined, 12), span('limit', undefined, 8)] : []),
-    ...r.limits.map(l => span(`${LIMITS[l.kind].icon} ${l.percent}%`, heat(l.percent / 100), 10)),
+    ...r.limits.map(l => span(`${LIMITS[l.kind].short} ${l.percent}%`, heat(l.percent / 100), 10)),
   ].join('')
   const base = HEADER - 4
-  const height = HEADER + GAP + BAR_HEIGHT
-  const { defs, parts } = barParts(r, width, HEADER + GAP, BAR_HEIGHT)
+  const barY = HEADER + GAP
+  const { defs, parts } = barParts(r, width, barY, BAR_HEIGHT)
+  const legendSvg = open ? legendParts(r, width, barY + BAR_HEIGHT + 8) : { defs: '', parts: '', height: 0 }
+  const height = barY + BAR_HEIGHT + legendSvg.height
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
-    `<defs>${defs}</defs>` +
+    `<defs>${defs}${legendSvg.defs}</defs>` +
     `<text x="0" y="${base}" fill="${TEXT}">Context</text>` +
     `<text x="${width}" y="${base}" text-anchor="end" xml:space="preserve">${right}</text>` +
     parts +
+    legendSvg.parts +
     `</svg>`
   )
+}
+
+const LEGEND_LINE = 18
+const CHAR = 6.4 // an estimate of a character's width at FONT, generous so items never overlap
+
+// The legend from `top`: each slice a swatch, its name, tokens and share, packed into lines of `width`.
+function legendParts(r: Reading, width: number, top: number) {
+  const defs: string[] = []
+  const parts: string[] = []
+  let x = 0
+  let line = 0
+  r.slices.forEach((s, i) => {
+    const words = `${s.name} ${tokens(s.tokens)}${s.kind === 'used' ? ` ${share(s.tokens, r.window)}` : ''}`
+    const w = 15 + words.length * CHAR
+    if (x > 0 && x + w > width) {
+      x = 0
+      line++
+    }
+    const y = top + line * LEGEND_LINE
+    if (s.kind === 'free') {
+      parts.push(`<rect x="${x}" y="${y + 4.5}" width="10" height="1" fill="${FREE}"/>`)
+    } else {
+      const p = pattern(r, s, `l${i}`, y)
+      defs.push(p.def)
+      parts.push(`<rect x="${x}" y="${y}" width="10" height="10" fill="${p.fill}"/>`)
+    }
+    const isUsed = s.kind === 'used'
+    parts.push(
+      `<text x="${x + 15}" y="${y + 9}" xml:space="preserve">` +
+        `<tspan fill="${isUsed ? '#c4c4c9' : TEXT}">${esc(s.name)} </tspan>` +
+        `<tspan fill="${isUsed ? '#e8e8ea' : TEXT}"${isUsed ? ' font-weight="600"' : ''}>${tokens(s.tokens)}</tspan>` +
+        (isUsed ? `<tspan fill="${TEXT}"> ${share(s.tokens, r.window)}</tspan>` : '') +
+        `</text>`,
+    )
+    x += w + 18
+  })
+  return { defs: defs.join(''), parts: parts.join(''), height: 8 + (line + 1) * LEGEND_LINE - 6 }
 }
 
 // A legend swatch, the slice's own fill in a small square.
