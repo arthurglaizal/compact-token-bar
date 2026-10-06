@@ -3,7 +3,7 @@
 //   stacked bar. Colors are neutral greys and every category has its own texture (solid, stripes,
 //   grid...), so the bar reads without color. Hovering a segment shows its label. The detailed
 //   legend is folded by default: the arrow at the end of the header opens it.
-//   /compact-token shows or hides the bar, and the choice is kept across sessions.
+//   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -28,7 +28,7 @@ const isExpanded = atom({ plugin: 'compact-claude-token', key: 'isExpanded' } as
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
-    await $.command.register({ name: 'compact-token', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+    await $.command.register({ name: 'compact-token-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
     const hidden = (await $.store.get('isHidden').catch(() => undefined)) === true
     await update($, isHidden, () => hidden)
     void refresh($).catch(() => {})
@@ -47,11 +47,11 @@ export const register: Register = on => {
     return r
   })
 
-  on('command.run', { command: 'compact-token' }, async $ => {
+  on('command.run', { command: 'compact-token-bar' }, async $ => {
     const hidden = await update($, isHidden, h => !h)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
-    return { text: hidden ? 'Context bar hidden. /compact-token shows it again' : 'Context bar on' }
+    return { text: hidden ? 'Context bar hidden. /compact-token-bar shows it again' : 'Context bar on' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

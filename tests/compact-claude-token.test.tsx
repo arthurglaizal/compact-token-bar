@@ -134,17 +134,17 @@ describe('compact-claude-token', () => {
     expect(asked.length).toBe(2)
   })
 
-  test('/compact-token hides and shows it, and remembers the choice', async ($, on) => {
+  test('/compact-token-bar hides and shows it, and remembers the choice', async ($, on) => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    expect((await $.command.run({ command: 'compact-token', args: '' } as any)).text).toMatch(/hidden/)
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
     let band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
 
-    expect((await $.command.run({ command: 'compact-token', args: '' } as any)).text).toBe('Context bar on')
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
     band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
