@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { cells, legend, share, toReading, tokens } from '../hooks/register'
+import { cells, legend, ramp, resets, share, toReading, tokens } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -37,11 +37,12 @@ function engine(on: any, store: Record<string, unknown> = {}) {
   on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
   on('command.register', () => ({ value: undefined }))
   on('turn.complete', () => ({ text: '' }))
+  on('clock.now', () => ({ value: Date.now() }))
   on('store.get', (_$: any, e: any) => ({ value: store[e.key] }))
   on('store.set', (_$: any, e: any) => ((store[e.key] = e.value), { value: undefined }))
   on('session.usage', (_$: any, e: any) => {
     asked.push(e)
-    return { value: { startedAt: 0, context: { tokens: 204_000, window: 1_000_000, percent: 20, breakdown: BREAKDOWN }, rateLimits: {}, cost: { usd: 0 } } }
+    return { value: { startedAt: 0, context: { tokens: 204_000, window: 1_000_000, percent: 20, breakdown: BREAKDOWN }, rateLimits: [{ kind: 'five_hour', percentUsed: 42.4, resetsAt: new Date(Date.now() + 130 * 60_000).toISOString() }, { kind: 'seven_day', percentUsed: 91 }, { kind: 'spend_limit', percentUsed: 5 }], cost: { usd: 0 } } }
   })
   on('ui.render', ($: any, e: any) => $.ui.resolve(e).Text({ children: 'band below' }))
   return { asked, store }
@@ -83,6 +84,14 @@ describe('compact-token-bar', () => {
       expect(size <= 40 || line.length === 1).toBe(true)
     }
     expect(toReading({ ...BREAKDOWN, isAutoCompactEnabled: false }).compactsAt).toBeUndefined()
+    // The slate ramp runs from its dark end to its light end.
+    expect(ramp(0, 4)).toBe('#566178')
+    expect(ramp(3, 4)).toBe('#cfd7e3')
+    expect(resets(undefined, 0)).toBe('')
+    expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
+    expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
+    // Only the session and weekly windows are kept, session first.
+    expect(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 9.6 }, { kind: 'spend_limit', percentUsed: 1 }, { kind: 'five_hour', percentUsed: 3 }]).limits.map(l => [l.kind, l.percent])).toEqual([['five_hour', 3], ['seven_day', 10]])
   })
 
   test('draws the bar folded, with a label on each segment', async ($, on) => {
@@ -95,6 +104,10 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: / 20% / })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
+    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: /session \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
     expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
     await band.unmount()

@@ -11,14 +11,15 @@ import type { Reading, Slice } from '../types'
 
 const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
-// Neutral greys, alternating light and dark so neighbours stay apart; the texture does the rest.
-const PALETTE = ['#d0d5dc', '#8a94a1', '#b7bec8', '#6f7a88', '#c3c9d1', '#98a2ae', '#dde1e6']
+// One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
+const RAMP = ['#566178', '#cfd7e3'] as const
 // One texture per used category: solid is kept for messages, the row that grows.
 const TEXTURES = ['▓', '▚', '▤', '▥', '▦', '▞', '▒']
 const MESSAGES = '#d97757' // the one warm accent: the row that grows
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { used: '█', free: '─', buffer: '░' } as const
+const LIMITS = { five_hour: { icon: '◷', label: 'session (5 h)' }, seven_day: { icon: '▦', label: 'week (7 days)' } } as const
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -66,6 +67,9 @@ export const register: Register = on => {
     const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
     const pct = ` ${r.percent}% `
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+    const now = await $.clock.now()
+    // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
+    // one cell wide (the desktop) then never wraps the bar onto a second line.
     let at = 0 // the column a segment starts at, to anchor its label on the side with room
     return (
       <Box flexDirection="column">
@@ -81,6 +85,17 @@ export const register: Register = on => {
                 <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
                 <Text>{' '}</Text>
               </Text>
+              {r.limits.length > 0 && <Text dimColor>{'│ '}</Text>}
+              {r.limits.map(l => (
+                <Box key={`limit-${l.kind}`} marginRight={1}>
+                  <Text color={l.percent >= 90 ? 'red' : l.percent >= 70 ? 'yellow' : undefined}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
+                  <Box position="absolute" top={-1} right={0} display="none" hover={{ display: 'flex' }}>
+                    <Text bold color="black" backgroundColor="white" wrap="truncate-end">
+                      {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
+                    </Text>
+                  </Box>
+                </Box>
+              ))}
               <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
                 {open ? '▾' : '▸'}
               </Button>
@@ -91,8 +106,8 @@ export const register: Register = on => {
               const onRight = at + c.text.length / 2 > inner / 2
               at += c.text.length
               return (
-                <Box key={`seg-${i}`} width={c.text.length} flexShrink={0}>
-                  <Text color={c.color}>{c.text}</Text>
+                <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                  <Text color={c.color} wrap="truncate">{c.text.repeat(2)}</Text>
                   <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
                     <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
                       {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
@@ -129,7 +144,7 @@ async function refresh($: EngineInterface) {
   const usage = await $.session.usage({ breakdown: 'summary' })
   const b = usage.context.breakdown
   if (!b || !(b.rawMaxTokens > 0)) return // no window to measure against
-  await update($, reading, () => toReading(b))
+  await update($, reading, () => toReading(b, usage.rateLimits))
 }
 
 export function toReading(b: {
@@ -139,12 +154,13 @@ export function toReading(b: {
   percentage: number
   autoCompactThreshold?: number
   isAutoCompactEnabled: boolean
-}): Reading {
+}, rateLimits: { kind: string; percentUsed: number; resetsAt?: string }[] = []): Reading {
   const slices: Slice[] = b.categories
     .filter(c => c.kind !== 'deferred' && c.tokens > 0)
     .map(c => ({ name: c.name.toLowerCase(), tokens: c.tokens, color: c.color, glyph: '', kind: c.kind as Slice['kind'] }))
   const order = { used: 0, free: 1, buffer: 2 }
   slices.sort((x, y) => order[x.kind] - order[y.kind]) // stable: used rows keep /context's order
+  const ramped = slices.filter(c => c.kind === 'used' && c.name !== 'messages').length
   let next = 0
   for (const s of slices) {
     if (s.kind !== 'used') {
@@ -154,7 +170,7 @@ export function toReading(b: {
       s.color = MESSAGES
       s.glyph = GLYPH.used
     } else {
-      s.color = PALETTE[next % PALETTE.length]!
+      s.color = ramp(next, ramped)
       s.glyph = TEXTURES[next % TEXTURES.length]!
       next++
     }
@@ -165,7 +181,28 @@ export function toReading(b: {
     window: b.rawMaxTokens,
     percent: b.percentage,
     compactsAt: b.isAutoCompactEnabled ? b.autoCompactThreshold : undefined,
+    limits: rateLimits
+      .filter((l): l is typeof l & { kind: keyof typeof LIMITS } => l.kind in LIMITS)
+      .sort((x, y) => (x.kind === 'five_hour' ? -1 : 1) - (y.kind === 'five_hour' ? -1 : 1))
+      .map(l => ({ kind: l.kind, percent: Math.round(l.percentUsed), resetsAt: l.resetsAt })),
   }
+}
+
+// The i-th of n colors along the slate ramp.
+export function ramp(i: number, n: number) {
+  const t = n <= 1 ? 0.5 : i / (n - 1)
+  const [a, b] = RAMP.map(c => [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16)))
+  return `#${a!.map((v, k) => Math.round(v + (b![k]! - v) * t).toString(16).padStart(2, '0')).join('')}`
+}
+
+// " · resets in 2 h 10" for a window's reset time, nothing when it is unknown or past.
+export function resets(at: string | undefined, now: number) {
+  const ms = at ? Date.parse(at) - now : NaN
+  if (!(ms > 0)) return ''
+  const min = Math.round(ms / 60_000)
+  const d = Math.floor(min / 1440)
+  const h = Math.floor((min % 1440) / 60)
+  return ` · resets in ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
 }
 
 // The bar as runs of cells: each slice gets its share of `width`, a used one at least one cell.
