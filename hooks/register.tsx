@@ -65,7 +65,7 @@ export const register: Register = on => {
     const r = await read($, reading)
     if (e.props.hasSurvey || (await read($, isHidden)) || !r) return rest
     const { Box, Text, Button } = $.ui.resolve(e)
-    const inner = e.props.bodyColumns - 4 // the border and padding take 4 cells
+    const inner = e.props.bodyColumns - 2 // no border: the padding takes 2 cells
     if (inner < MIN_WIDTH) return rest
     const open = await read($, isExpanded)
 
@@ -87,7 +87,7 @@ export const register: Register = on => {
       let from = 0
       return (
         <Box flexDirection="column">
-          <Box flexDirection="column" borderStyle="round" borderColor="inactive" borderDimColor paddingX={1}>
+          <Box flexDirection="column" paddingX={1}>
             <Box flexDirection="row">
               <Box flexDirection="column" flexGrow={1}>
                 <Svg source={cardSvg(r, drawn, open)} alt={barAlt(r)} />
@@ -163,7 +163,7 @@ export const register: Register = on => {
     )
     return (
       <Box flexDirection="column">
-        <Box flexDirection="column" borderStyle="round" borderColor="inactive" borderDimColor paddingX={1}>
+        <Box flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Text dimColor>Context</Text>
             <Box flexDirection="row">
@@ -229,6 +229,7 @@ export const register: Register = on => {
 // estimate of a column's width; a drawing wider than its slot is scaled down to fit.
 const PX_PER_COLUMN = 8.4
 const FONT = 11
+const TITLE_FONT = 13 // the title a little larger than the figures
 const ROW = 20 // the card's one line: the title, the bar, the figures and the chevron
 const BAR_HEIGHT = 15 // a multiple of the dots' 5 px step, so no row of dots is cut
 const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
@@ -324,7 +325,7 @@ export function layout(r: Reading, width: number) {
   const figuresEnd = chevronX - 12
   const limitsWidth = spanWidth(limits)
   const figuresWidth = spanWidth(context) + limitsWidth
-  const barX = 'Context'.length * CHAR_WIDTH + 14
+  const barX = 'Context'.length * CHAR_WIDTH * (TITLE_FONT / FONT) + 14
   const barWidth = Math.max(40, figuresEnd - figuresWidth - 16 - barX)
   return { barX, barWidth, figuresEnd, limitsWidth, chevronX }
 }
@@ -347,7 +348,7 @@ export function cardSvg(r: Reading, width: number, open = false) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
     `<defs>${defs}${legendSvg.defs}</defs>` +
-    `<text x="0" y="${base}" fill="${TEXT}">Context</text>` +
+    `<text x="0" y="${base}" fill="${TEXT}" font-size="${TITLE_FONT}">Context</text>` +
     parts +
     `<text x="${at.figuresEnd}" y="${base}" text-anchor="end" xml:space="preserve">${spans}</text>` +
     chevron +

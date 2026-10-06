@@ -104,6 +104,7 @@ describe('compact-token-bar', () => {
     expect(card).toContain('204k of 950k') // against the compaction point, the real limit
     expect(card).not.toContain('compacts at')
     expect(card).toContain('font-size="11"')
+    expect(card).toContain('font-size="13">Context</text>') // the title, a little larger
     expect(card).not.toContain('>messages <') // folded: no legend
     const opened = cardSvg(r, 700, true)
     expect(opened).toContain('>messages </tspan>')
