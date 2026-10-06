@@ -13,11 +13,11 @@ import type { Reading, Slice } from '../types'
 const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
 // One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
-const RAMP = ['#566178', '#a9b3c6'] as const
+const RAMP = ['#4c5568', '#868fa0'] as const
 // Lower blocks, so the bar is a little shorter than a line of text and has no gaps between neighbours.
 // Used rows are solid, messages (the row that grows) are quiet dots, the buffer a low band.
 const USED = '▆'
-const MESSAGES = { color: '#9ea6b3', glyph: '⠿', ground: '#2a2c31' } as const // small light grey dots on a very light grey
+const MESSAGES = { color: '#7b8391', glyph: '⠿', ground: '#26282c' } as const // quiet grey dots on a barely lighter ground
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
@@ -257,11 +257,11 @@ export function pattern(r: Reading, s: Slice, id: string, y = 0) {
   }
   if (s.name === 'messages') {
     // Whole dots only: the tile starts where the shape does, and the shape is a whole number of tiles tall.
-    return { def: `<pattern id="${id}" x="0" y="${y}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${MESSAGES.ground}"/><circle cx="2.5" cy="2.5" r="1.3" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
+    return { def: `<pattern id="${id}" x="0" y="${y}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${MESSAGES.ground}"/><circle cx="2.5" cy="2.5" r="1.2" fill="${MESSAGES.color}"/></pattern>`, fill: `url(#${id})` }
   }
   const angles = [45, 135, 0, 90]
   const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
-  return { def: `<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angles[Math.max(0, k) % angles.length]})"><rect width="5" height="5" fill="${darken(s.color, 0.6)}"/><rect width="2.5" height="5" fill="${s.color}"/></pattern>`, fill: `url(#${id})` }
+  return { def: `<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angles[Math.max(0, k) % angles.length]})"><rect width="5" height="5" fill="${darken(s.color, 0.45)}"/><rect width="2.5" height="5" fill="${s.color}"/></pattern>`, fill: `url(#${id})` }
 }
 
 // The bar alone, `width` by `height`, at (left, y).

@@ -83,8 +83,8 @@ describe('compact-token-bar', () => {
     }
     expect(toReading({ ...BREAKDOWN, isAutoCompactEnabled: false }).compactsAt).toBeUndefined()
     // The slate ramp runs from its dark end to its light end.
-    expect(ramp(0, 4)).toBe('#566178')
-    expect(ramp(3, 4)).toBe('#a9b3c6')
+    expect(ramp(0, 4)).toBe('#4c5568')
+    expect(ramp(3, 4)).toBe('#868fa0')
     expect([0, 1, 2, 3, 4].map(k => zigzag(k, 5))).toEqual([0, 3, 1, 4, 2]) // every step of the ramp, once
     // The vector bar: one tooltip per segment, a pattern per category, no script.
     const svg = barSvg(r, 14)
