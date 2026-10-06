@@ -1,7 +1,7 @@
 {
   "name": "compact-token-bar",
-  "version": "0.1.0",
-  "description": "Your context window as a stacked bar above the prompt, a color per category, with token counts and the compaction point. /context-bar shows or hides it. (Fork of hamzafer/claude-code-mods context-bar.)",
+  "version": "1.0.0",
+  "description": "Your context window as one quiet line above the prompt: a patterned bar, the fill against the compaction point, a compact button and your session and weekly limits, grey until something gets warm. /compact-token-bar shows or hides it.",
   "author": {
     "name": "Arthur Glaizal",
     "url": "https://github.com/arthurglaizal"

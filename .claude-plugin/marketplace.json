@@ -1,0 +1,16 @@
+{
+  "name": "arthur-mods",
+  "owner": {
+    "name": "Arthur Glaizal"
+  },
+  "plugins": [
+    {
+      "name": "compact-token-bar",
+      "source": "./",
+      "description": "Your context window as one quiet line above the prompt: a patterned bar, the fill against the compaction point, a compact button and your session and weekly limits, grey until something gets warm. /compact-token-bar shows or hides it."
+    }
+  ],
+  "metadata": {
+    "description": "Arthur's Claude Code mods: quiet, compact, grey until it matters."
+  }
+}
