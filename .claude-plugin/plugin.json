@@ -1,0 +1,10 @@
+{
+  "name": "compact-claude-token",
+  "version": "0.1.0",
+  "description": "Your context window as a stacked bar above the prompt, a color per category, with token counts and the compaction point. /context-bar shows or hides it. (Fork of hamzafer/claude-code-mods context-bar.)",
+  "author": {
+    "name": "Arthur Glaizal",
+    "url": "https://github.com/arthurglaizal"
+  },
+  "types": "./types/index.d.ts"
+}
