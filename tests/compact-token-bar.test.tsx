@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { cells, legend, ramp, resets, share, toReading, tokens } from '../hooks/register'
+import { cells, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -67,12 +67,10 @@ describe('compact-token-bar', () => {
     // Every used row has its own color, and none matches free space or the buffer.
     const colors = r.slices.filter(s => s.kind === 'used').map(s => s.color)
     expect(new Set(colors).size).toBe(colors.length)
-    expect(cells(r, 80).find(c => c.kind === 'buffer')?.text).toMatch(/^░+$/)
+    expect(cells(r, 80).find(c => c.kind === 'buffer')?.text).toMatch(/^▃+$/)
     expect(cells(r, 80).find(c => c.kind === 'free')?.text).toMatch(/^─+$/)
-    // Every used row has its own texture too, so the bar reads without color.
-    const glyphs = r.slices.filter(s => s.kind === 'used').map(s => s.glyph)
-    expect(new Set(glyphs).size).toBe(glyphs.length)
-    expect(r.slices.find(s => s.name === 'messages')?.glyph).toBe('⠪') // quiet dots, no accent color
+    // Messages are the dotted block; the other used rows are solid.
+    expect(r.slices.find(s => s.name === 'messages')?.glyph).toBe('⠿') // quiet dots, no accent color
 
     for (const width of [20, 47, 80, 200]) {
       const bar = cells(r, width)
@@ -87,6 +85,7 @@ describe('compact-token-bar', () => {
     // The slate ramp runs from its dark end to its light end.
     expect(ramp(0, 4)).toBe('#566178')
     expect(ramp(3, 4)).toBe('#a9b3c6')
+    expect([0, 1, 2, 3, 4].map(k => zigzag(k, 5))).toEqual([0, 3, 1, 4, 2]) // every step of the ramp, once
     expect(resets(undefined, 0)).toBe('')
     expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · remise à zéro dans 2 h 10')
     expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · remise à zéro dans 3 d 5 h')

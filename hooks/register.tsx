@@ -13,17 +13,18 @@ const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
 // One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
 const RAMP = ['#566178', '#a9b3c6'] as const
-// One texture per used category; messages, the row that grows, are quiet dots on a grey ground.
-const TEXTURES = ['▓', '▚', '▒', '▞', '▌', '▀', '▄'] // block elements fill their cell: no gaps between neighbours
-const MESSAGES = { color: '#9aa5b8', glyph: '⠪', background: '#3a4152' } as const
+// Lower blocks, so the bar is a little shorter than a line of text and has no gaps between neighbours.
+// Used rows are solid, messages (the row that grows) are quiet dots, the buffer a low band.
+const USED = '▆'
+const MESSAGES = { color: '#8e99ad', glyph: '⠿' } as const
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
-const GLYPH = { free: '─', buffer: '░' } as const
+const GLYPH = { free: '─', buffer: '▃' } as const
 // A clock for the window that counts in hours, a grid (a calendar) for the one that counts in days.
 // Plain text glyphs: an emoji would bring its own colors and size.
 const LIMITS = { five_hour: { icon: '◷', label: 'Limite de session (5 h)' }, seven_day: { icon: '▦', label: 'Limite hebdomadaire (7 jours)' } } as const
 const ORANGE = '#e08a3c'
-const CHEVRON = { closed: '⌄', open: '⌃' } as const // down to open, up to fold
+const CHEVRON = { closed: '▾', open: '▴' } as const // down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -71,7 +72,7 @@ export const register: Register = on => {
     const head = `${tokens(r.total)} sur ${tokens(r.window)}${r.compactsAt ? ` · compactage à ${tokens(r.compactsAt)}` : ''}`
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
-    const barWidth = inner - 6 // the fold button, a bordered `[ ⌄ ]`, takes the end of the line
+    const barWidth = inner - 3 // the fold chevron takes the end of the line
     const now = await $.clock.now()
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
@@ -105,8 +106,8 @@ export const register: Register = on => {
                 )
               })}
               <Box marginLeft={2}>
-                <Button key="close" plain dimColor onPress={() => void hide($)}>
-                  ✕
+                <Button key="close" plain onPress={() => void hide($)}>
+                  ×
                 </Button>
               </Box>
             </Box>
@@ -120,7 +121,7 @@ export const register: Register = on => {
                   <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
                     {/* the glyphs overshoot and are clipped, so no ellipsis ends a short segment */}
                     <Box width={0} flexGrow={1} height={1} overflow="hidden">
-                      <Text color={c.color} backgroundColor={c.slice.background} wrap="wrap">{c.text.repeat(3)}</Text>
+                      <Text color={c.color} wrap="wrap">{c.text.repeat(3)}</Text>
                     </Box>
                     <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
                       <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
@@ -132,7 +133,7 @@ export const register: Register = on => {
               })}
             </Box>
             <Box marginLeft={1}>
-              <Button key="toggle-legend" onPress={() => void update($, isExpanded, v => !v)}>
+              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
                 {open ? CHEVRON.open : CHEVRON.closed}
               </Button>
             </Box>
@@ -143,7 +144,7 @@ export const register: Register = on => {
                 {line.map((s, i) => (
                   <Text>
                     {i > 0 && <Text>{SPLIT}</Text>}
-                    <Text color={s.color} backgroundColor={s.background}>{`${s.glyph} `}</Text>
+                    <Text color={s.color}>{`${s.glyph} `}</Text>
                     <Text dimColor={s.kind !== 'used'}>{`${s.name} `}</Text>
                     <Text bold={s.kind === 'used'}>{tokens(s.tokens)}</Text>
                     {s.kind === 'used' && <Text dimColor>{` ${share(s.tokens, r.window)}`}</Text>}
@@ -195,10 +196,9 @@ export function toReading(b: {
     } else if (s.name === 'messages') {
       s.color = MESSAGES.color
       s.glyph = MESSAGES.glyph
-      s.background = MESSAGES.background
     } else {
-      s.color = ramp(next, ramped)
-      s.glyph = TEXTURES[next % TEXTURES.length]!
+      s.color = ramp(zigzag(next, ramped), ramped)
+      s.glyph = USED
       next++
     }
   }
@@ -213,6 +213,11 @@ export function toReading(b: {
       .sort((x, y) => (x.kind === 'five_hour' ? -1 : 1) - (y.kind === 'five_hour' ? -1 : 1))
       .map(l => ({ kind: l.kind, percent: Math.round(l.percentUsed), resetsAt: l.resetsAt })),
   }
+}
+
+// The order the ramp is walked in: dark, light, a bit less dark, a bit less light... so neighbours differ.
+export function zigzag(k: number, n: number) {
+  return k % 2 === 0 ? k / 2 : Math.ceil(n / 2) + (k - 1) / 2
 }
 
 // The i-th of n colors along the slate ramp.
