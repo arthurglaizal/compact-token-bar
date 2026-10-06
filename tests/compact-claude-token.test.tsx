@@ -49,7 +49,7 @@ function engine(on: any, store: Record<string, unknown> = {}) {
 
 const settle = () => new Promise(done => (globalThis as any).setTimeout(done, 20)) // the first refresh runs in the background
 
-describe('context-bar', () => {
+describe('compact-claude-token', () => {
   test('helpers', () => {
     expect(tokens(3_400)).toBe('3.4k')
     expect(tokens(186_000)).toBe('186k')
@@ -68,6 +68,10 @@ describe('context-bar', () => {
     expect(new Set(colors).size).toBe(colors.length)
     expect(cells(r, 80).find(c => c.kind === 'buffer')?.text).toMatch(/^░+$/)
     expect(cells(r, 80).find(c => c.kind === 'free')?.text).toMatch(/^─+$/)
+    // Every used row has its own texture too, so the bar reads without color.
+    const glyphs = r.slices.filter(s => s.kind === 'used').map(s => s.glyph)
+    expect(new Set(glyphs).size).toBe(glyphs.length)
+    expect(r.slices.find(s => s.name === 'messages')?.color).toBe('#d97757')
 
     for (const width of [20, 47, 80, 200]) {
       const bar = cells(r, width)
@@ -81,19 +85,32 @@ describe('context-bar', () => {
     expect(toReading({ ...BREAKDOWN, isAutoCompactEnabled: false }).compactsAt).toBeUndefined()
   })
 
-  test('draws the bar and legend above the prompt from a summary breakdown', async ($, on) => {
+  test('draws the bar folded, with a label on each segment', async ($, on) => {
     const { asked } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
-    const band = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: / 20% / })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
+    expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
+    expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
+    await band.unmount()
+  })
+
+  test('the arrow opens and folds the legend', async ($, on) => {
+    engine(on)
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
+    await band.press({ key: 'toggle-legend' })
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^186k$/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /mcp tools \(deferred\)/ })).toBeUndefined()
-    expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
+    await band.press({ key: 'toggle-legend' })
+    expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined()
     await band.unmount()
   })
 
@@ -117,19 +134,19 @@ describe('context-bar', () => {
     expect(asked.length).toBe(2)
   })
 
-  test('/context-bar hides and shows it, and remembers the choice', async ($, on) => {
+  test('/compact-token hides and shows it, and remembers the choice', async ($, on) => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    expect((await $.command.run({ command: 'context-bar', args: '' } as any)).text).toMatch(/hidden/)
+    expect((await $.command.run({ command: 'compact-token', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
-    let band = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', ...BAND } as any)
+    let band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
 
-    expect((await $.command.run({ command: 'context-bar', args: '' } as any)).text).toBe('Context bar on')
+    expect((await $.command.run({ command: 'compact-token', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
-    band = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', ...BAND } as any)
+    band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
     await band.unmount()
   })
@@ -138,7 +155,7 @@ describe('context-bar', () => {
     engine(on, { isHidden: true })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'compact-claude-token', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
   })

@@ -2,7 +2,14 @@
 
 Mod Claude Code privé, basé sur `context-bar` de [hamzafer/claude-code-mods](https://github.com/hamzafer/claude-code-mods) (licence MIT, voir `LICENSE`).
 
-État actuel : copie fidèle de `context-bar`, seul le nom du plugin change (`compact-claude-token`). Les modifications arrivent par itérations.
+Plugin : `compact-claude-token`. Commande : `/compact-token` (affiche ou masque la barre).
+
+## Changements par rapport à `context-bar`
+
+- Palette neutre (gris) au lieu de l'arc-en-ciel. Seul `messages` garde l'orange.
+- Chaque catégorie a sa propre texture (`▓ ▚ ▤ ▥ ▦ ▞ ▒`), donc la barre se lit sans les couleurs.
+- Survol d'un segment : son nom, ses tokens et son pourcentage s'affichent.
+- Légende détaillée repliée par défaut. La flèche `▸` en bout de ligne du titre l'ouvre ou la ferme.
 
 ## Tester
 

@@ -1,8 +1,9 @@
-// Context Bar: what is filling my context window?
-//   Above the prompt, the window as one stacked bar, a color per category as /context
-//   draws them (system prompt, tools, MCP tools, memory files, skills, messages, free),
-//   with a legend of tokens and shares and where auto-compaction runs. It refreshes after
-//   each turn. /context-bar shows or hides it, and the choice is kept across sessions.
+// Compact Claude Token: what is filling my context window?
+//   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, the window as one
+//   stacked bar. Colors are neutral greys and every category has its own texture (solid, stripes,
+//   grid...), so the bar reads without color. Hovering a segment shows its label. The detailed
+//   legend is folded by default: the arrow at the end of the header opens it.
+//   /compact-token shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -10,21 +11,24 @@ import type { Reading, Slice } from '../types'
 
 const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
-// /context's theme gives several rows the same grey, so each used row gets its own color, in order.
-const PALETTE = ['#7aa2f7', '#7dcfff', '#bb9af7', '#9ece6a', '#e0af68', '#f7768e', '#73daca', '#ff9e64', '#c0caf5']
-const MESSAGES = '#d97757' // the row that grows, in the accent color
+// Neutral greys, alternating light and dark so neighbours stay apart; the texture does the rest.
+const PALETTE = ['#d0d5dc', '#8a94a1', '#b7bec8', '#6f7a88', '#c3c9d1', '#98a2ae', '#dde1e6']
+// One texture per used category: solid is kept for messages, the row that grows.
+const TEXTURES = ['▓', '▚', '▤', '▥', '▦', '▞', '▒']
+const MESSAGES = '#d97757' // the one warm accent: the row that grows
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { used: '█', free: '─', buffer: '░' } as const
 
 // Held by the host, so the bar survives a hot reload of this file.
-const reading = atom({ plugin: 'context-bar', key: 'reading' } as const, null as Reading | null)
-const isHidden = atom({ plugin: 'context-bar', key: 'isHidden' } as const, false)
+const reading = atom({ plugin: 'compact-claude-token', key: 'reading' } as const, null as Reading | null)
+const isHidden = atom({ plugin: 'compact-claude-token', key: 'isHidden' } as const, false)
+const isExpanded = atom({ plugin: 'compact-claude-token', key: 'isExpanded' } as const, false)
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
-    await $.command.register({ name: 'context-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+    await $.command.register({ name: 'compact-token', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
     const hidden = (await $.store.get('isHidden').catch(() => undefined)) === true
     await update($, isHidden, () => hidden)
     void refresh($).catch(() => {})
@@ -43,24 +47,26 @@ export const register: Register = on => {
     return r
   })
 
-  on('command.run', { command: 'context-bar' }, async $ => {
+  on('command.run', { command: 'compact-token' }, async $ => {
     const hidden = await update($, isHidden, h => !h)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
-    return { text: hidden ? 'Context bar hidden. /context-bar shows it again' : 'Context bar on' }
+    return { text: hidden ? 'Context bar hidden. /compact-token shows it again' : 'Context bar on' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const rest = await next(e) // what other mods and Claude Code draw here stays
     const r = await read($, reading)
     if (e.props.hasSurvey || (await read($, isHidden)) || !r) return rest
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
     const inner = e.props.bodyColumns - 4 // the border and padding take 4 cells
     if (inner < MIN_WIDTH) return rest
+    const open = await read($, isExpanded)
 
     const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
     const pct = ` ${r.percent}% `
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
+    let at = 0 // the column a segment starts at, to anchor its label on the side with room
     return (
       <Box flexDirection="column">
         <Box flexDirection="column" borderStyle="round" borderColor="inactive" paddingX={1}>
@@ -69,29 +75,47 @@ export const register: Register = on => {
               <Text color="#d97757">{'◆ '}</Text>
               <Text bold>context</Text>
             </Text>
-            <Text wrap="truncate-start">
-              <Text dimColor>{`${head} `}</Text>
-              <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
-            </Text>
+            <Box flexDirection="row">
+              <Text wrap="truncate-start">
+                <Text dimColor>{`${head} `}</Text>
+                <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
+                <Text>{' '}</Text>
+              </Text>
+              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
+                {open ? '▾' : '▸'}
+              </Button>
+            </Box>
           </Box>
-          <Text>
-            {cells(r, inner).map(c => (
-              <Text color={c.color}>{c.text}</Text>
+          <Box flexDirection="row">
+            {cells(r, inner).map((c, i) => {
+              const onRight = at + c.text.length / 2 > inner / 2
+              at += c.text.length
+              return (
+                <Box key={`seg-${i}`} width={c.text.length} flexShrink={0}>
+                  <Text color={c.color}>{c.text}</Text>
+                  <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                    <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
+                      {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                    </Text>
+                  </Box>
+                </Box>
+              )
+            })}
+          </Box>
+          {open &&
+            legend(r, inner).map(line => (
+              <Text wrap="truncate-end">
+                {line.map((s, i) => (
+                  <Text>
+                    {i > 0 && <Text>{SPLIT}</Text>}
+                    <Text color={s.color}>{`${s.glyph} `}</Text>
+                    <Text dimColor={s.kind !== 'used'}>{`${s.name} `}</Text>
+                    <Text bold={s.kind === 'used'}>{tokens(s.tokens)}</Text>
+                    {s.kind === 'used' && <Text dimColor>{` ${share(s.tokens, r.window)}`}</Text>}
+                  </Text>
+                ))}
+              </Text>
             ))}
-          </Text>
-          {legend(r, inner).map(line => (
-            <Text wrap="truncate-end">
-              {line.map((s, i) => (
-                <Text>
-                  {i > 0 && <Text>{SPLIT}</Text>}
-                  <Text color={s.color}>{s.kind === 'used' ? '■ ' : `${GLYPH[s.kind]} `}</Text>
-                  <Text dimColor={s.kind !== 'used'}>{`${s.name} `}</Text>
-                  <Text bold={s.kind === 'used'}>{tokens(s.tokens)}</Text>
-                  {s.kind === 'used' && <Text dimColor>{` ${share(s.tokens, r.window)}`}</Text>}
-                </Text>
-              ))}
-            </Text>
-          ))}
         </Box>
         {rest}
       </Box>
@@ -118,12 +142,22 @@ export function toReading(b: {
 }): Reading {
   const slices: Slice[] = b.categories
     .filter(c => c.kind !== 'deferred' && c.tokens > 0)
-    .map(c => ({ name: c.name.toLowerCase(), tokens: c.tokens, color: c.color, kind: c.kind as Slice['kind'] }))
+    .map(c => ({ name: c.name.toLowerCase(), tokens: c.tokens, color: c.color, glyph: '', kind: c.kind as Slice['kind'] }))
   const order = { used: 0, free: 1, buffer: 2 }
   slices.sort((x, y) => order[x.kind] - order[y.kind]) // stable: used rows keep /context's order
   let next = 0
   for (const s of slices) {
-    s.color = s.kind === 'free' ? FREE : s.kind === 'buffer' ? BUFFER : s.name === 'messages' ? MESSAGES : PALETTE[next++ % PALETTE.length]!
+    if (s.kind !== 'used') {
+      s.color = s.kind === 'free' ? FREE : BUFFER
+      s.glyph = GLYPH[s.kind]
+    } else if (s.name === 'messages') {
+      s.color = MESSAGES
+      s.glyph = GLYPH.used
+    } else {
+      s.color = PALETTE[next % PALETTE.length]!
+      s.glyph = TEXTURES[next % TEXTURES.length]!
+      next++
+    }
   }
   return {
     slices,
@@ -147,7 +181,7 @@ export function cells(r: Reading, width: number) {
     diff -= size - sizes[i]!
     sizes[i] = size
   }
-  return r.slices.map((s, i) => ({ color: s.color, kind: s.kind, text: GLYPH[s.kind].repeat(sizes[i]!) })).filter(c => c.text !== '')
+  return r.slices.map((s, i) => ({ color: s.color, kind: s.kind, slice: s, text: s.glyph.repeat(sizes[i]!) })).filter(c => c.text !== '')
 }
 
 // The legend, packed into lines no wider than `width`.

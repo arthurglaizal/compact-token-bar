@@ -1,4 +1,10 @@
-export type Slice = { name: string; tokens: number; color: string; kind: 'used' | 'free' | 'buffer' }
+export type Slice = {
+  name: string
+  tokens: number
+  color: string
+  glyph: string // the texture the slice is drawn with, so the bar reads without color
+  kind: 'used' | 'free' | 'buffer'
+}
 
 export type Reading = {
   slices: Slice[]
@@ -10,6 +16,6 @@ export type Reading = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'context-bar': { reading: Reading | null; isHidden: boolean }
+    'compact-claude-token': { reading: Reading | null; isHidden: boolean; isExpanded: boolean }
   }
 }
