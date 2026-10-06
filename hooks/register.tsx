@@ -391,14 +391,15 @@ export function legendAlt(r: Reading) {
   return r.slices.map(s => `${s.name} ${tokens(s.tokens)}`).join(', ')
 }
 
-// A reminder of a segment's pattern in text, for the tooltips: a hatched square at the stripes' angle,
-// five dots for messages, a line for free space.
+// A reminder of a segment's pattern in text, for the tooltips (a picture does not show there): a short
+// strip of three glyphs at about the bar's own scale. Stripes at the bar's angle (rotate 45 leans like "/",
+// 135 like "\", 0 stands, 90 lies), dots for messages, a hatch for the buffer, a line for free space.
 export function swatchGlyph(r: Reading, s: Slice) {
-  if (s.kind === 'free') return '─'
-  if (s.kind === 'buffer') return '▨'
-  if (s.name === 'messages') return '⁙'
+  if (s.kind === 'free') return '───'
+  if (s.kind === 'buffer') return '╱╱╱'
+  if (s.name === 'messages') return '⠑⠑⠑'
   const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
-  return ['▨', '▧', '▤', '▥'][Math.max(0, k) % 4]!
+  return ['╱╱╱', '╲╲╲', '│││', '═══'][Math.max(0, k) % 4]!
 }
 
 const swatchColor = (s: Slice) => (s.kind === 'used' ? (s.name === 'messages' ? '#8e96a3' : s.color) : FREE)

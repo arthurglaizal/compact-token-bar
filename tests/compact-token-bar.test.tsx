@@ -114,8 +114,9 @@ describe('compact-token-bar', () => {
     expect(tiny).toContain('&lt;0.1%')
     expect(tiny).not.toMatch(/> ?<0\.1%/)
     // The tooltips recall each segment's pattern in text.
-    expect(swatchGlyph(r, r.slices.find(s => s.name === 'messages')!)).toBe('⁙')
-    expect(swatchGlyph(r, r.slices.find(s => s.kind === 'free')!)).toBe('─')
+    expect(swatchGlyph(r, r.slices.find(s => s.name === 'messages')!)).toBe('⠑⠑⠑')
+    expect(swatchGlyph(r, r.slices.find(s => s.kind === 'free')!)).toBe('───')
+    expect(swatchGlyph(r, r.slices[0]!)).toBe('╱╱╱') // the first category's stripes lean like its pattern
     // A plan with only a weekly window shows that one alone.
     expect(figures(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 4 }])).limits.map(x => x.text)).toEqual(['│', 'limit', '4%'])
     expect(figures(toReading(BREAKDOWN, [])).limits).toEqual([]) // none reported, no limits at all
