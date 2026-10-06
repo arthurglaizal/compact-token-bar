@@ -24,7 +24,7 @@ const GLYPH = { free: '─', buffer: '▃' } as const
 // Plain text glyphs: an emoji would bring its own colors and size.
 const LIMITS = { five_hour: { icon: '◷', label: 'Session limit (5 h)' }, seven_day: { icon: '▦', label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
-const CHEVRON = { closed: '▾', open: '▴' } as const // down to open, up to fold
+const CHEVRON = { closed: '▽', open: '△' } as const // outlined triangles: down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
 const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
@@ -78,11 +78,31 @@ export const register: Register = on => {
     // one cell wide (the desktop) then never wraps the bar onto a second line.
     let at = 0 // the column a segment starts at, to anchor its label on the side with room
     // The terminal draws the bar in glyphs; the surfaces that have a vector element draw it as an SVG, with
-    // real stripes and dots and a native tooltip on each segment.
-    const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string; height: number; isInteractive: boolean }) => any) | undefined
+    // real stripes and dots.
+    const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
+    // A picture has no hover of its own: a row of empty, keyed boxes lies over it and each one reveals its label.
+    let from = 0
     const bar = Svg ? (
-      <Box flexDirection="row" flexGrow={1}>
-        <Svg source={barSvg(r, BAR_HEIGHT)} alt={barAlt(r)} height={BAR_HEIGHT} isInteractive />
+      <Box flexDirection="column" flexGrow={1}>
+        <Svg source={barSvg(r, BAR_HEIGHT)} alt={barAlt(r)} />
+        <Box position="absolute" top={0} left={0} right={0} flexDirection="row" height={1}>
+          {cells(r, barWidth).map((c, i) => {
+            const onRight = from + c.text.length / 2 > barWidth / 2
+            from += c.text.length
+            return (
+              <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                <Box width={0} flexGrow={1} height={1} overflow="hidden">
+                  <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
+                </Box>
+                <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                  <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
+                    {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                  </Text>
+                </Box>
+              </Box>
+            )
+          })}
+        </Box>
       </Box>
     ) : (
       <Box flexDirection="row" flexGrow={1}>
@@ -134,8 +154,8 @@ export const register: Register = on => {
                 )
               })}
               <Box marginLeft={2}>
-                <Button key="close" plain onPress={() => void hide($)}>
-                  ×
+                <Button key="close" plain dimColor onPress={() => void hide($)}>
+                  ✕
                 </Button>
               </Box>
             </Box>
@@ -169,7 +189,8 @@ export const register: Register = on => {
   })
 }
 
-const BAR_HEIGHT = 14
+const BAR_HEIGHT = 16
+const BAR_WIDTH = 1800 // the drawing's own width: the surface scales it down to the room there is
 
 // "#rrggbb" mixed with the dark of the card, t in 0..1 of the way to it.
 function darken(hex: string, t: number) {
@@ -184,8 +205,7 @@ export function barAlt(r: Reading) {
 }
 
 // The bar as one SVG: each used category a striped pattern, messages dots, free space a thin line, the
-// compaction buffer a hatch. Positions are percentages and the patterns are in pixels, so a stripe never
-// stretches with the width. A <title> is the tooltip.
+// compaction buffer a hatch. Positions are in the drawing's own units and the patterns keep their size.
 export function barSvg(r: Reading, height: number) {
   const bar = cells(r, 1000)
   const angles = [45, 135, 0, 90]
@@ -195,12 +215,12 @@ export function barSvg(r: Reading, height: number) {
   const parts: string[] = []
   bar.forEach((c, i) => {
     const w = c.text.length
-    const x = `${at / 10}%`
-    const wd = `${w / 10}%`
+    const x = `${(at * BAR_WIDTH) / 1000}`
+    const wd = `${(w * BAR_WIDTH) / 1000}`
     at += w
     const tip = `<title>${esc(`${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)}`)}</title>`
     if (c.kind === 'free') {
-      parts.push(`<g>${tip}<rect x="${x}" y="0" width="${wd}" height="${height}" fill="transparent"/><rect x="${x}" y="${height / 2}" width="${wd}" height="1" fill="${FREE}"/></g>`)
+      parts.push(`<g>${tip}<rect x="${x}" y="${height / 2 - 0.5}" width="${wd}" height="1" fill="${FREE}"/></g>`)
       return
     }
     let fill: string
@@ -217,7 +237,7 @@ export function barSvg(r: Reading, height: number) {
     }
     parts.push(`<g>${tip}<rect x="${x}" y="0" width="${wd}" height="${height}" fill="${fill}"/></g>`)
   })
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${height}"><style>g:hover{opacity:.8}rect{shape-rendering:crispEdges}</style><defs>${defs.join('')}</defs>${parts.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BAR_WIDTH}" height="${height}" viewBox="0 0 ${BAR_WIDTH} ${height}"><style>g:hover{opacity:.8}rect{shape-rendering:crispEdges}</style><defs>${defs.join('')}</defs>${parts.join('')}</svg>`
 }
 
 // The close button: hides the bar as /compact-token-bar does, and keeps the choice.

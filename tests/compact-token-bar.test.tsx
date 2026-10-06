@@ -90,7 +90,8 @@ describe('compact-token-bar', () => {
     const svg = barSvg(r, 14)
     expect(svg).toContain('<title>messages · 186k · 19%</title>')
     expect(svg.match(/<pattern /g)!.length).toBe(5) // four used rows and the buffer; free space is a line
-    expect(svg).not.toMatch(/<script|on\w+=/)
+    expect(svg).not.toMatch(/<script|on\w+=|transparent/)
+    expect(svg).toContain('viewBox="0 0 1800 14"')
     expect(resets(undefined, 0)).toBe('')
     expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
     expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
@@ -124,7 +125,7 @@ describe('compact-token-bar', () => {
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
     const svg = await band.find({ type: 'Svg' })
     expect(svg).toBeDefined()
-    expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeUndefined() // the tooltip is the SVG's own
+    expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the label of a segment, over the picture
     await band.unmount()
   })
 
