@@ -32,7 +32,7 @@ const BREAKDOWN = {
 }
 
 // Stands for the engine beneath the mod.
-function engine(on: any, store: Record<string, unknown> = {}) {
+function engine(on: any, store: Record<string, unknown> = {}, limits?: unknown[]) {
   const asked: unknown[] = []
   on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
   on('command.register', () => ({ value: undefined }))
@@ -42,7 +42,7 @@ function engine(on: any, store: Record<string, unknown> = {}) {
   on('store.set', (_$: any, e: any) => ((store[e.key] = e.value), { value: undefined }))
   on('session.usage', (_$: any, e: any) => {
     asked.push(e)
-    return { value: { startedAt: 0, context: { tokens: 204_000, window: 1_000_000, percent: 20, breakdown: BREAKDOWN }, rateLimits: [{ kind: 'five_hour', percentUsed: 42.4, resetsAt: new Date(Date.now() + 130 * 60_000).toISOString() }, { kind: 'seven_day', percentUsed: 91 }, { kind: 'spend_limit', percentUsed: 5 }], cost: { usd: 0 } } }
+    return { value: { startedAt: 0, context: { tokens: 204_000, window: 1_000_000, percent: 20, breakdown: BREAKDOWN }, rateLimits: limits ?? [{ kind: 'five_hour', percentUsed: 42.4, resetsAt: new Date(Date.now() + 130 * 60_000).toISOString() }, { kind: 'seven_day', percentUsed: 91 }, { kind: 'spend_limit', percentUsed: 5 }], cost: { usd: 0 } } }
   })
   on('ui.render', ($: any, e: any) => $.ui.resolve(e).Text({ children: 'band below' }))
   return { asked, store }
@@ -229,6 +229,18 @@ describe('compact-token-bar', () => {
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: '12%' })).toBeDefined() // the weekly window alone
     expect(await band.find({ type: 'Text', text: '5h ' })).toBeUndefined()
+    await band.unmount()
+  })
+
+  test('a new session shows the last limits seen until its first response', async ($, on) => {
+    const later = new Date(Date.now() + 3_600_000).toISOString()
+    const { store } = engine(on, { limits: [{ kind: 'seven_day', percent: 7, resetsAt: later }, { kind: 'five_hour', percent: 3, resetsAt: '2000-01-01T00:00:00Z' }] }, []) // no response yet: no limits reported
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    expect(await band.find({ type: 'Text', text: '7%' })).toBeDefined() // the weekly window, still valid
+    expect(await band.find({ type: 'Text', text: '5h ' })).toBeUndefined() // the session window, reset since
+    expect(store.limits).toBeDefined()
     await band.unmount()
   })
 

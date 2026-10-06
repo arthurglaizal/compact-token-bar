@@ -58,7 +58,11 @@ export const register: Register = on => {
   // The limits move with every response, between the turns this plugin refreshes on: follow them here.
   on('session.measure', async ($, e, next) => {
     const r = await next(e)
-    if (e.changed.includes('rateLimits')) await update($, reading, cur => (cur ? { ...cur, limits: toLimits(e.rateLimits) } : cur)).catch(() => {})
+    if (e.changed.includes('rateLimits')) {
+      const limits = toLimits(e.rateLimits)
+      await update($, reading, cur => (cur ? { ...cur, limits } : cur)).catch(() => {})
+      if (limits.length) await $.store.set('limits', limits).catch(() => {})
+    }
     return r
   })
 
@@ -510,7 +514,19 @@ async function refresh($: EngineInterface) {
   const usage = await $.session.usage({ breakdown: 'summary' })
   const b = usage.context.breakdown
   if (!b || !(b.rawMaxTokens > 0)) return // no window to measure against
-  await update($, reading, () => toReading(b, usage.rateLimits))
+  const fresh = toReading(b, usage.rateLimits)
+  if (fresh.limits.length) await $.store.set('limits', fresh.limits).catch(() => {})
+  else fresh.limits = await lastLimits($) // before this session's first response: the last ones seen, still valid
+  await update($, reading, () => fresh)
+}
+
+// The limits are the account's, not the session's: the last ones seen (kept across sessions) still hold until
+// their window resets, so a new session shows them before its first response.
+async function lastLimits($: EngineInterface): Promise<Reading['limits']> {
+  const kept = (await $.store.get('limits').catch(() => undefined)) as Reading['limits'] | undefined
+  if (!Array.isArray(kept)) return []
+  const now = await $.clock.now()
+  return kept.filter(l => !l.resetsAt || Date.parse(l.resetsAt) > now)
 }
 
 export function toReading(b: {
