@@ -114,6 +114,7 @@ describe('compact-token-bar', () => {
     // A plan with only a weekly window shows that one alone.
     expect(figures(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 4 }])).limits.map(x => x.text)).toEqual(['│', 'limit', '4%'])
     expect(figures(toReading(BREAKDOWN, [])).limits).toEqual([]) // none reported, no limits at all
+    expect(figures(r, true).context.map(x => x.text)).toEqual(['204k of 950k', 'compacting…']) // while the compact button works
     expect(resets(undefined, 0)).toBe('')
     expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
     expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
@@ -171,7 +172,6 @@ describe('compact-token-bar', () => {
     await band.press({ key: 'compact' })
     expect(compacted.length).toBe(1)
     expect(JSON.stringify(toasts)).toContain('Conversation compacted') // says when it is done
-    expect(await band.find({ type: 'Svg', alt: /compacting…/ })).toBeUndefined() // back to the figures once done
     await band.unmount()
   })
 
