@@ -24,6 +24,7 @@ const GLYPH = { free: '─', buffer: '▃' } as const
 // The windows, session first then week; the line shows their figures alone and the hover names them.
 const LIMITS = { five_hour: { label: 'Session limit (5 h)' }, seven_day: { label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
+const TERMINAL_COMPACT = '≍' // two curves pinched toward each other: the terminal's compact button
 const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
@@ -71,7 +72,6 @@ export const register: Register = on => {
 
     const { head, percent, level } = fill(r)
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
-    const barWidth = inner - 3 // the fold chevron takes the end of the line
     const now = await $.clock.now()
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
@@ -176,10 +176,22 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const bar = (
-      <Box flexDirection="row" flexGrow={1}>
-              {cells(r, barWidth).map((c, i) => {
-                const onRight = at + c.text.length / 2 > barWidth / 2
+    // The terminal: the same single line, in glyphs. Every width is known to the cell here, so the bar takes
+    // exactly the room the rest leaves, and every gap is two cells.
+    const pctText = heat ? ` ${percent}% ` : `${percent}%`
+    const limitTexts = r.limits.map(l => `${l.percent}%`)
+    const fixed =
+      'Context'.length + 2 + (2 + head.length) + (2 + pctText.length) + (2 + 1) +
+      (r.limits.length ? 2 + '│ limit'.length + limitTexts.reduce((n, t) => n + 2 + t.length, 0) : 0) + (2 + 1) + (2 + 1)
+    const lineBar = Math.max(4, inner - fixed)
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="column" paddingX={1}>
+          <Box flexDirection="row">
+            <Text dimColor>Context</Text>
+            <Box marginLeft={2} width={lineBar} flexDirection="row">
+              {cells(r, lineBar).map((c, i) => {
+                const onRight = at + c.text.length / 2 > lineBar / 2
                 at += c.text.length
                 return (
                   <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
@@ -187,56 +199,56 @@ export const register: Register = on => {
                     <Box width={0} flexGrow={1} height={1} overflow="hidden">
                       <Text color={c.color} wrap="wrap">{c.text.repeat(3)}</Text>
                     </Box>
-                    <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                      <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
-                        {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                    <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                      <Text wrap="truncate-end">
+                        <Text color={TIP.name}>{`${c.slice.name} `}</Text>
+                        <Text color={TIP.figure} bold>{tokens(c.slice.tokens)}</Text>
+                        <Text color={TIP.dim}>{` ${share(c.slice.tokens, r.window)}`}</Text>
                       </Text>
                     </Box>
                   </Box>
                 )
               })}
             </Box>
-    )
-    return (
-      <Box flexDirection="column">
-        <Box flexDirection="column" paddingX={1}>
-          <Box flexDirection="row" justifyContent="space-between">
-            <Text dimColor>Context</Text>
-            <Box flexDirection="row">
-              <Text dimColor wrap="truncate-start">{head}</Text>
+            <Box marginLeft={2}>
+              <Text dimColor>{head}</Text>
+            </Box>
+            <Box marginLeft={2}>
+              {heat ? <Text bold color="black" backgroundColor={heat}>{pctText}</Text> : <Text dimColor>{pctText}</Text>}
+            </Box>
+            <Box marginLeft={2}>
+              <Button key="compact" plain dimColor onPress={() => void compactNow($)}>
+                {TERMINAL_COMPACT}
+              </Button>
+            </Box>
+            {r.limits.length > 0 && (
               <Box marginLeft={2}>
-                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${percent}% `}</Text> : <Text dimColor>{`${percent}%`}</Text>}
+                <Text dimColor>│ limit</Text>
               </Box>
-              {r.limits.length > 0 && (
-                <Box marginLeft={2}>
-                  <Text dimColor>{'│  limit'}</Text>
+            )}
+            {r.limits.map(l => {
+              const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
+              return (
+                <Box key={`limit-${l.kind}`} marginLeft={2}>
+                  <Text dimColor={!hot} color={hot} bold={!!hot}>{`${l.percent}%`}</Text>
+                  <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+                    <Text wrap="truncate-end">
+                      <Text color={TIP.name}>{`${LIMITS[l.kind].label} `}</Text>
+                      <Text color={TIP.figure} bold>{`${l.percent}%`}</Text>
+                      <Text color={TIP.dim}>{resets(l.resetsAt, now)}</Text>
+                    </Text>
+                  </Box>
                 </Box>
-              )}
-              {r.limits.map(l => {
-                const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
-                return (
-                  <Box key={`limit-${l.kind}`} marginLeft={2}>
-                    <Text dimColor={!hot} color={hot}>{`${l.percent}%`}</Text>
-                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-                      <Text bold color="black" backgroundColor="white" wrap="truncate-end">
-                        {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
-                      </Text>
-                    </Box>
-                  </Box>
-                )
-              })}
-              <Box marginLeft={2}>
-                <Button key="close" plain dimColor onPress={() => void hide($)}>
-                  ✕
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-          <Box flexDirection="row">
-            {bar}
-            <Box marginLeft={1}>
-              <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
+              )
+            })}
+            <Box marginLeft={2}>
+              <Button key="toggle-legend" plain dimColor onPress={() => void update($, isExpanded, v => !v)}>
                 {open ? CHEVRON.open : CHEVRON.closed}
+              </Button>
+            </Box>
+            <Box marginLeft={2}>
+              <Button key="close" plain dimColor onPress={() => void hide($)}>
+                ✕
               </Button>
             </Box>
           </Box>

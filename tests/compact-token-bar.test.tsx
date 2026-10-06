@@ -139,13 +139,14 @@ describe('compact-token-bar', () => {
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /^204k of 950k$/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '21%' })).toBeDefined() // 204k of 950k; grey: no badge while the window is cool
-    expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
+    expect(await band.find({ type: 'Text', text: 'messages ' })).toBeDefined() // the hover label of a segment, on the one line
     expect(await band.find({ type: 'Text', text: '42%' })).toBeDefined() // session limit
     expect(await band.find({ type: 'Text', text: '91%' })).toBeDefined() // weekly limit
-    expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
-    expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
+    expect(await band.find({ type: 'Text', text: 'Session limit (5 h) ' })).toBeDefined() // the limit's hover label
+    expect(await band.find({ type: 'Text', text: /^5%$/ })).toBeUndefined() // a gateway's spend limit is not shown
+    expect(await band.find({ type: 'Text', text: '⠿ ' })).toBeUndefined() // the legend (its swatches) is folded
     expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
+    expect(await band.find({ type: 'Text', text: '│ limit' })).toBeDefined() // the limits on the same line
     await band.unmount()
   })
 
@@ -186,11 +187,11 @@ describe('compact-token-bar', () => {
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
     await band.press({ key: 'toggle-legend' })
-    expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: '⠿ ' })).toBeDefined() // the legend's messages swatch
     expect(await band.find({ type: 'Text', text: /^186k$/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /mcp tools \(deferred\)/ })).toBeUndefined()
     await band.press({ key: 'toggle-legend' })
-    expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: '⠿ ' })).toBeUndefined()
     await band.unmount()
   })
 
