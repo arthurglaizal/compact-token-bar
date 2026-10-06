@@ -22,7 +22,7 @@ const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
 // A clock for the window that counts in hours, a grid (a calendar) for the one that counts in days.
 // Plain text glyphs: an emoji would bring its own colors and size.
-const LIMITS = { five_hour: { icon: '◷', label: 'Limite de session (5 h)' }, seven_day: { icon: '▦', label: 'Limite hebdomadaire (7 jours)' } } as const
+const LIMITS = { five_hour: { icon: '◷', label: 'Session limit (5 h)' }, seven_day: { icon: '▦', label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
 const CHEVRON = { closed: '▾', open: '▴' } as const // down to open, up to fold
 
@@ -34,7 +34,7 @@ const isExpanded = atom({ plugin: 'compact-token-bar', key: 'isExpanded' } as co
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
-    await $.command.register({ name: 'compact-token-bar', description: 'Affiche ou masque la barre de contexte au-dessus du prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+    await $.command.register({ name: 'compact-token-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
     const hidden = (await $.store.get('isHidden').catch(() => undefined)) === true
     await update($, isHidden, () => hidden)
     void refresh($).catch(() => {})
@@ -57,7 +57,7 @@ export const register: Register = on => {
     const hidden = await update($, isHidden, h => !h)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
-    return { text: hidden ? 'Barre de contexte masquée. /compact-token-bar la réaffiche' : 'Barre de contexte affichée' }
+    return { text: hidden ? 'Context bar hidden. /compact-token-bar shows it again' : 'Context bar on' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -69,7 +69,7 @@ export const register: Register = on => {
     if (inner < MIN_WIDTH) return rest
     const open = await read($, isExpanded)
 
-    const head = `${tokens(r.total)} sur ${tokens(r.window)}${r.compactsAt ? ` · compactage à ${tokens(r.compactsAt)}` : ''}`
+    const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
     const heat = level >= 0.9 ? 'red' : level >= 0.7 ? ORANGE : undefined // grey until it gets warm
     const barWidth = inner - 3 // the fold chevron takes the end of the line
@@ -77,43 +77,15 @@ export const register: Register = on => {
     // A segment grows in proportion to its cells and the glyphs are cut to fit: a font whose glyphs are not
     // one cell wide (the desktop) then never wraps the bar onto a second line.
     let at = 0 // the column a segment starts at, to anchor its label on the side with room
-    return (
-      <Box flexDirection="column">
-        <Box flexDirection="column" borderStyle="round" borderColor="inactive" paddingX={1}>
-          <Box flexDirection="row" justifyContent="space-between">
-            <Text bold>Contexte</Text>
-            <Box flexDirection="row">
-              <Text dimColor wrap="truncate-start">{head}</Text>
-              <Box marginLeft={2}>
-                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${r.percent}% `}</Text> : <Text dimColor>{`${r.percent}%`}</Text>}
-              </Box>
-              {r.limits.length > 0 && (
-                <Box marginLeft={2}>
-                  <Text dimColor>{'│  limite'}</Text>
-                </Box>
-              )}
-              {r.limits.map(l => {
-                const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
-                return (
-                  <Box key={`limit-${l.kind}`} marginLeft={2}>
-                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
-                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-                      <Text bold color="black" backgroundColor="white" wrap="truncate-end">
-                        {` ${LIMITS[l.kind].label} · ${l.percent}% utilisé${resets(l.resetsAt, now)} `}
-                      </Text>
-                    </Box>
-                  </Box>
-                )
-              })}
-              <Box marginLeft={2}>
-                <Button key="close" plain onPress={() => void hide($)}>
-                  ×
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-          <Box flexDirection="row">
-            <Box flexDirection="row" flexGrow={1}>
+    // The terminal draws the bar in glyphs; the surfaces that have a vector element draw it as an SVG, with
+    // real stripes and dots and a native tooltip on each segment.
+    const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string; height: number; isInteractive: boolean }) => any) | undefined
+    const bar = Svg ? (
+      <Box flexDirection="row" flexGrow={1}>
+        <Svg source={barSvg(r, BAR_HEIGHT)} alt={barAlt(r)} height={BAR_HEIGHT} isInteractive />
+      </Box>
+    ) : (
+      <Box flexDirection="row" flexGrow={1}>
               {cells(r, barWidth).map((c, i) => {
                 const onRight = at + c.text.length / 2 > barWidth / 2
                 at += c.text.length
@@ -132,6 +104,44 @@ export const register: Register = on => {
                 )
               })}
             </Box>
+    )
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="column" borderStyle="round" borderColor="inactive" borderDimColor paddingX={1}>
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text dimColor>Context</Text>
+            <Box flexDirection="row">
+              <Text dimColor wrap="truncate-start">{head}</Text>
+              <Box marginLeft={2}>
+                {heat ? <Text bold color="black" backgroundColor={heat}>{` ${r.percent}% `}</Text> : <Text dimColor>{`${r.percent}%`}</Text>}
+              </Box>
+              {r.limits.length > 0 && (
+                <Box marginLeft={2}>
+                  <Text dimColor>{'│  limit'}</Text>
+                </Box>
+              )}
+              {r.limits.map(l => {
+                const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
+                return (
+                  <Box key={`limit-${l.kind}`} marginLeft={2}>
+                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].icon} ${l.percent}%`}</Text>
+                    <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
+                      <Text bold color="black" backgroundColor="white" wrap="truncate-end">
+                        {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
+                      </Text>
+                    </Box>
+                  </Box>
+                )
+              })}
+              <Box marginLeft={2}>
+                <Button key="close" plain onPress={() => void hide($)}>
+                  ×
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+          <Box flexDirection="row">
+            {bar}
             <Box marginLeft={1}>
               <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
                 {open ? CHEVRON.open : CHEVRON.closed}
@@ -157,6 +167,57 @@ export const register: Register = on => {
       </Box>
     )
   })
+}
+
+const BAR_HEIGHT = 14
+
+// "#rrggbb" mixed with the dark of the card, t in 0..1 of the way to it.
+function darken(hex: string, t: number) {
+  const dark = [0x1c, 0x1c, 0x1e]
+  return `#${[1, 3, 5].map((k, i) => Math.round(parseInt(hex.slice(k, k + 2), 16) * (1 - t) + dark[i]! * t).toString(16).padStart(2, '0')).join('')}`
+}
+
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+export function barAlt(r: Reading) {
+  return `Context window: ${tokens(r.total)} of ${tokens(r.window)} used. ${r.slices.filter(s => s.kind === 'used').map(s => `${s.name} ${share(s.tokens, r.window)}`).join(', ')}`
+}
+
+// The bar as one SVG: each used category a striped pattern, messages dots, free space a thin line, the
+// compaction buffer a hatch. Positions are percentages and the patterns are in pixels, so a stripe never
+// stretches with the width. A <title> is the tooltip.
+export function barSvg(r: Reading, height: number) {
+  const bar = cells(r, 1000)
+  const angles = [45, 135, 0, 90]
+  let used = 0
+  let at = 0
+  const defs: string[] = []
+  const parts: string[] = []
+  bar.forEach((c, i) => {
+    const w = c.text.length
+    const x = `${at / 10}%`
+    const wd = `${w / 10}%`
+    at += w
+    const tip = `<title>${esc(`${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)}`)}</title>`
+    if (c.kind === 'free') {
+      parts.push(`<g>${tip}<rect x="${x}" y="0" width="${wd}" height="${height}" fill="transparent"/><rect x="${x}" y="${height / 2}" width="${wd}" height="1" fill="${FREE}"/></g>`)
+      return
+    }
+    let fill: string
+    if (c.kind === 'buffer') {
+      defs.push(`<pattern id="p${i}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1" height="4" fill="${BUFFER}"/></pattern>`)
+      fill = `url(#p${i})`
+    } else if (c.slice.name === 'messages') {
+      defs.push(`<pattern id="p${i}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${darken(MESSAGES.color, 0.7)}"/><circle cx="2" cy="2" r="1" fill="${MESSAGES.color}"/></pattern>`)
+      fill = `url(#p${i})`
+    } else {
+      const angle = angles[used++ % angles.length]
+      defs.push(`<pattern id="p${i}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})"><rect width="5" height="5" fill="${darken(c.color, 0.6)}"/><rect width="2.5" height="5" fill="${c.color}"/></pattern>`)
+      fill = `url(#p${i})`
+    }
+    parts.push(`<g>${tip}<rect x="${x}" y="0" width="${wd}" height="${height}" fill="${fill}"/></g>`)
+  })
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${height}"><style>g:hover{opacity:.8}rect{shape-rendering:crispEdges}</style><defs>${defs.join('')}</defs>${parts.join('')}</svg>`
 }
 
 // The close button: hides the bar as /compact-token-bar does, and keeps the choice.
@@ -227,14 +288,14 @@ export function ramp(i: number, n: number) {
   return `#${a!.map((v, k) => Math.round(v + (b![k]! - v) * t).toString(16).padStart(2, '0')).join('')}`
 }
 
-// " · remise à zéro dans 2 h 10" for a window's reset time, nothing when it is unknown or past.
+// " · resets in 2 h 10" for a window's reset time, nothing when it is unknown or past.
 export function resets(at: string | undefined, now: number) {
   const ms = at ? Date.parse(at) - now : NaN
   if (!(ms > 0)) return ''
   const min = Math.round(ms / 60_000)
   const d = Math.floor(min / 1440)
   const h = Math.floor((min % 1440) / 60)
-  return ` · remise à zéro dans ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
+  return ` · resets in ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
 }
 
 // The bar as runs of cells: each slice gets its share of `width`, a used one at least one cell.

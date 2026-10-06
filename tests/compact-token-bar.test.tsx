@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { cells, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barSvg, cells, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -86,9 +86,14 @@ describe('compact-token-bar', () => {
     expect(ramp(0, 4)).toBe('#566178')
     expect(ramp(3, 4)).toBe('#a9b3c6')
     expect([0, 1, 2, 3, 4].map(k => zigzag(k, 5))).toEqual([0, 3, 1, 4, 2]) // every step of the ramp, once
+    // The vector bar: one tooltip per segment, a pattern per category, no script.
+    const svg = barSvg(r, 14)
+    expect(svg).toContain('<title>messages · 186k · 19%</title>')
+    expect(svg.match(/<pattern /g)!.length).toBe(5) // four used rows and the buffer; free space is a line
+    expect(svg).not.toMatch(/<script|on\w+=/)
     expect(resets(undefined, 0)).toBe('')
-    expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · remise à zéro dans 2 h 10')
-    expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · remise à zéro dans 3 d 5 h')
+    expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
+    expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')
     // Only the session and weekly windows are kept, session first.
     expect(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 9.6 }, { kind: 'spend_limit', percentUsed: 1 }, { kind: 'five_hour', percentUsed: 3 }]).limits.map(l => [l.kind, l.percent])).toEqual([['five_hour', 3], ['seven_day', 10]])
   })
@@ -100,15 +105,26 @@ describe('compact-token-bar', () => {
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /204k sur 1M · compactage à 950k/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /204k of 1M · compacts at 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
     expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
     expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
-    expect(await band.find({ type: 'Text', text: /Limite de session \(5 h\) · 42% utilisé · remise à zéro dans 2 h/ })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% utilisé/ })).toBeUndefined() // a gateway's spend limit is not shown
+    expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded
     expect(await band.find({ type: 'Text', text: 'band below' })).toBeDefined() // the band beneath stays
+    await band.unmount()
+  })
+
+  test('the desktop draws the bar as an SVG', async ($, on) => {
+    engine(on)
+    await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
+    const svg = await band.find({ type: 'Svg' })
+    expect(svg).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeUndefined() // the tooltip is the SVG's own
     await band.unmount()
   })
 
@@ -135,7 +151,7 @@ describe('compact-token-bar', () => {
     expect(store.isHidden).toBe(true)
     await band.unmount()
     const again = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await again.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
+    expect(await again.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await again.unmount()
   })
 
@@ -163,16 +179,16 @@ describe('compact-token-bar', () => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/masquée/)
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
     let band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
 
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Barre de contexte affichée')
+    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
     band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeDefined()
     await band.unmount()
   })
 
@@ -181,7 +197,7 @@ describe('compact-token-bar', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
     const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
-    expect(await band.find({ type: 'Text', text: /sur 1M/ })).toBeUndefined()
+    expect(await band.find({ type: 'Text', text: /of 1M/ })).toBeUndefined()
     await band.unmount()
   })
 })
