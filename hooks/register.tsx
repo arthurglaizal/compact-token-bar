@@ -102,8 +102,7 @@ export const register: Register = on => {
       // so the bar always ends exactly one GAP before the figures.
       const rowWidth = Math.max(160, drawn - contextWidth - limitsWidth - Math.round(4 * PX_PER_COLUMN) + 32)
       const barX = titleWidth()
-      const col = (px: number) => Math.round(px / PX_PER_COLUMN)
-      const barCols = Math.max(1, col(rowWidth - barX))
+      const barPx = Math.max(20, rowWidth - barX) // the bar's width in the drawing, as barRowSvg draws it
       let from = 0
       // A button of the card: a stroked icon in the text's grey, centered in its own box, an empty button over
       // the whole box so the hover area sits right around the icon, and a short tooltip.
@@ -128,13 +127,16 @@ export const register: Register = on => {
             <Box flexDirection="row" alignItems="center">
               <Box flexShrink={1}>
                 <Svg source={barRowSvg(r, rowWidth)} alt={barAlt(r)} />
-                {/* A picture has no hover of its own: empty keyed boxes lie over the bar and reveal the labels. */}
-                <Box position="absolute" top={0} left={col(barX)} width={barCols} flexDirection="row" height={1}>
-                  {cells(r, barCols).map((c, i) => {
-                    const onRight = from + c.text.length / 2 > barCols / 2
+                {/* A picture has no hover of its own: empty keyed boxes lie over the bar and reveal the labels.
+                    They span the picture as drawn and share it in the drawing's own proportions (the title, then
+                    each segment), so they stay on their segment even when the row shrinks the picture. */}
+                <Box position="absolute" top={0} left={0} right={0} flexDirection="row" height={1}>
+                  <Box width={0} flexGrow={barX} height={1} />
+                  {cells(r, 1000).map((c, i) => {
+                    const onRight = from + c.text.length / 2 > 500
                     from += c.text.length
                     return (
-                      <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                      <Box key={`hit-${i}`} width={0} flexGrow={(c.text.length * barPx) / 1000} height={1}>
                         <Box width={0} flexGrow={1} height={1} overflow="hidden">
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
