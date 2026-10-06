@@ -57,14 +57,14 @@ This repository is its own plugin marketplace.
 
 ```sh
 claude plugin marketplace add arthurglaizal/compact-token-bar
-claude plugin install compact-token-bar@arthur-mods
+claude plugin install compact-token-bar@arturo-mods
 ```
 
 Or, in a Claude Code session:
 
 ```txt
 /plugin marketplace add arthurglaizal/compact-token-bar
-/plugin install compact-token-bar@arthur-mods
+/plugin install compact-token-bar@arturo-mods
 ```
 
 Start a new session and the bar appears above the prompt.

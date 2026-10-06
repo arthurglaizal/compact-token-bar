@@ -1,5 +1,5 @@
 {
-  "name": "arthur-mods",
+  "name": "arturo-mods",
   "owner": {
     "name": "Arthur Glaizal"
   },
@@ -11,6 +11,6 @@
     }
   ],
   "metadata": {
-    "description": "Arthur's Claude Code mods: quiet, compact, grey until it matters."
+    "description": "Arturo's Claude Code mods: quiet, compact, grey until it matters."
   }
 }
