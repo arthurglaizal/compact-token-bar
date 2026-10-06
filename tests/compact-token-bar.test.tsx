@@ -141,6 +141,8 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: '21%' })).toBeDefined() // 204k of 950k; grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: 'messages ' })).toBeDefined() // the hover label of a segment, on the one line
     expect(await band.find({ type: 'Text', text: '42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '5h ' })).toBeDefined() // labelled in a terminal
+    expect(await band.find({ type: 'Text', text: 'week ' })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: 'Session limit (5 h) ' })).toBeDefined() // the limit's hover label
     expect(await band.find({ type: 'Text', text: /^5%$/ })).toBeUndefined() // a gateway's spend limit is not shown
@@ -216,6 +218,18 @@ describe('compact-token-bar', () => {
     expect(asked.length).toBe(1)
     await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1 } as any)
     expect(asked.length).toBe(2)
+  })
+
+  test('follows the limits as responses report them', async ($, on) => {
+    engine(on)
+    on('session.measure', (_$: any, e: any) => ({ changed: e.changed }))
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
+    await settle()
+    await $.session.measure({ context: { tokens: 1, window: 1, percent: 0 }, rateLimits: [{ kind: 'seven_day', percentUsed: 12 }], changed: ['rateLimits'] } as any)
+    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    expect(await band.find({ type: 'Text', text: '12%' })).toBeDefined() // the weekly window alone
+    expect(await band.find({ type: 'Text', text: '5h ' })).toBeUndefined()
+    await band.unmount()
   })
 
   test('refreshes after a compaction', async ($, on) => {

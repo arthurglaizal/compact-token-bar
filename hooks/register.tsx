@@ -22,7 +22,7 @@ const FREE = '#808080' // a mid grey thin line reads as empty on dark and light 
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
 // The windows, session first then week; the line shows their figures alone and the hover names them.
-const LIMITS = { five_hour: { label: 'Session limit (5 h)' }, seven_day: { label: 'Weekly limit (7 days)' } } as const
+const LIMITS = { five_hour: { label: 'Session limit (5 h)', short: '5h' }, seven_day: { label: 'Weekly limit (7 days)', short: 'week' } } as const // short: the terminal's label, where there is no hover to tell
 const ORANGE = '#e08a3c'
 const TERMINAL_COMPACT = '≍' // two curves pinched toward each other: the terminal's compact button
 const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
@@ -51,6 +51,13 @@ export const register: Register = on => {
   on('session.compact', async ($, e, next) => {
     const r = await next(e)
     if (!e.agentId && 'messages' in r) void refresh($).catch(() => {}) // a /compact empties the window without a turn ending
+    return r
+  })
+
+  // The limits move with every response, between the turns this plugin refreshes on: follow them here.
+  on('session.measure', async ($, e, next) => {
+    const r = await next(e)
+    if (e.changed.includes('rateLimits')) await update($, reading, cur => (cur ? { ...cur, limits: toLimits(e.rateLimits) } : cur)).catch(() => {})
     return r
   })
 
@@ -179,7 +186,7 @@ export const register: Register = on => {
     // The terminal: the same single line, in glyphs. Every width is known to the cell here, so the bar takes
     // exactly the room the rest leaves, and every gap is two cells.
     const pctText = heat ? ` ${percent}% ` : `${percent}%`
-    const limitTexts = r.limits.map(l => `${l.percent}%`)
+    const limitTexts = r.limits.map(l => `${LIMITS[l.kind].short} ${l.percent}%`) // labelled: a terminal has no reliable hover
     const fixed =
       'Context'.length + 2 + (2 + head.length) + (2 + pctText.length) + (2 + 1) +
       (r.limits.length ? 2 + '│ limit'.length + limitTexts.reduce((n, t) => n + 2 + t.length, 0) : 0) + (2 + 1) + (2 + 1)
@@ -230,7 +237,10 @@ export const register: Register = on => {
               const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
               return (
                 <Box key={`limit-${l.kind}`} marginLeft={2}>
-                  <Text dimColor={!hot} color={hot} bold={!!hot}>{`${l.percent}%`}</Text>
+                  <Text>
+                    <Text dimColor>{`${LIMITS[l.kind].short} `}</Text>
+                    <Text dimColor={!hot} color={hot} bold={!!hot}>{`${l.percent}%`}</Text>
+                  </Text>
                   <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
                     <Text wrap="truncate-end">
                       <Text color={TIP.name}>{`${LIMITS[l.kind].label} `}</Text>
@@ -248,7 +258,7 @@ export const register: Register = on => {
             </Box>
             <Box marginLeft={2}>
               <Button key="close" plain dimColor onPress={() => void hide($)}>
-                ✕
+                ×
               </Button>
             </Box>
           </Box>
@@ -535,11 +545,16 @@ export function toReading(b: {
     window: b.rawMaxTokens,
     percent: b.percentage,
     compactsAt: b.isAutoCompactEnabled ? b.autoCompactThreshold : undefined,
-    limits: rateLimits
-      .filter((l): l is typeof l & { kind: keyof typeof LIMITS } => l.kind in LIMITS)
-      .sort((x, y) => (x.kind === 'five_hour' ? -1 : 1) - (y.kind === 'five_hour' ? -1 : 1))
-      .map(l => ({ kind: l.kind, percent: Math.round(l.percentUsed), resetsAt: l.resetsAt })),
+    limits: toLimits(rateLimits),
   }
+}
+
+// The session and weekly windows the account reports, session first; a plan without one shows the other alone.
+export function toLimits(rateLimits: { kind: string; percentUsed: number; resetsAt?: string }[]) {
+  return rateLimits
+    .filter((l): l is typeof l & { kind: keyof typeof LIMITS } => l.kind in LIMITS)
+    .sort((x, y) => (x.kind === 'five_hour' ? -1 : 1) - (y.kind === 'five_hour' ? -1 : 1))
+    .map(l => ({ kind: l.kind, percent: Math.round(l.percentUsed), resetsAt: l.resetsAt }))
 }
 
 // The order the ramp is walked in: dark, light, a bit less dark, a bit less light... so neighbours differ.
