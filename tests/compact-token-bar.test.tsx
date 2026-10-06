@@ -102,6 +102,10 @@ describe('compact-token-bar', () => {
     expect(opened).toContain('>messages </tspan>')
     expect(opened).toContain('>186k</tspan>')
     expect((opened.match(/<circle/g) ?? []).length).toBe(2) // the dots of messages, in the bar and in its swatch
+    // A share under 0.1% is escaped: a bare "<" would make the picture fail to load.
+    const tiny = cardSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700, true)
+    expect(tiny).toContain('&lt;0.1%')
+    expect(tiny).not.toMatch(/> ?<0\.1%/)
     // A legend swatch carries the same pattern as its segment in the bar.
     const msgs = r.slices.find(s => s.name === 'messages')!
     expect(swatchSvg(r, msgs)).toContain('<circle')

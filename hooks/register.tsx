@@ -17,7 +17,7 @@ const RAMP = ['#566178', '#a9b3c6'] as const
 // Lower blocks, so the bar is a little shorter than a line of text and has no gaps between neighbours.
 // Used rows are solid, messages (the row that grows) are quiet dots, the buffer a low band.
 const USED = '▆'
-const MESSAGES = { color: '#dfe3ea', glyph: '⠿', ground: '#2a2c31' } as const // small white dots on a very light grey
+const MESSAGES = { color: '#9ea6b3', glyph: '⠿', ground: '#2a2c31' } as const // small light grey dots on a very light grey
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
@@ -343,7 +343,7 @@ function legendParts(r: Reading, width: number, top: number) {
       `<text x="${x + 15}" y="${y + 9}" xml:space="preserve">` +
         `<tspan fill="${isUsed ? '#c4c4c9' : TEXT}">${esc(s.name)} </tspan>` +
         `<tspan fill="${isUsed ? '#e8e8ea' : TEXT}"${isUsed ? ' font-weight="600"' : ''}>${tokens(s.tokens)}</tspan>` +
-        (isUsed ? `<tspan fill="${TEXT}"> ${share(s.tokens, r.window)}</tspan>` : '') +
+        (isUsed ? `<tspan fill="${TEXT}"> ${esc(share(s.tokens, r.window))}</tspan>` : '') + // escaped: "<0.1%" would break the markup
         `</text>`,
     )
     x += w + 18
