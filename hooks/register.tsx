@@ -101,8 +101,10 @@ export const register: Register = on => {
               {'\u00A0\u00A0'}
             </Button>
           </Box>
-          <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
-            <Text color={TIP.name} wrap="truncate-end">{b.tip}</Text>
+          {/* Centered over the button: a box as wide as the tip, its middle on the button's middle, the text
+              centered in it so a proportional font lands in the middle too. */}
+          <Box position="absolute" top={1} left={1 - Math.ceil((b.tip.length + 2) / 2)} width={b.tip.length + 2} justifyContent="center" display="none" hover={{ display: 'flex' }}>
+            <Text color={TIP.name}>{b.tip}</Text>
           </Box>
         </Box>
       )
