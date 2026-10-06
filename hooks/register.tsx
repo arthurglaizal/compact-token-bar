@@ -81,7 +81,10 @@ export const register: Register = on => {
     // bar as one SVG, with small text and real stripes and dots.
     const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
     if (Svg) {
-      const drawn = Math.round(barWidth * PX_PER_COLUMN)
+      const drawn = Math.round((inner - 2) * PX_PER_COLUMN) // the close cross takes the last two cells
+      const at = layout(r, drawn)
+      const col = (px: number) => Math.round(px / PX_PER_COLUMN)
+      const barCols = Math.max(1, col(at.barWidth))
       let from = 0
       return (
         <Box flexDirection="column">
@@ -90,8 +93,26 @@ export const register: Register = on => {
               <Box flexDirection="column" flexGrow={1}>
                 <Svg source={cardSvg(r, drawn, open)} alt={barAlt(r)} />
                 {/* A picture has no hover of its own: empty keyed boxes lie over it and reveal the labels. */}
+                <Box position="absolute" top={0} left={col(at.barX)} width={barCols} flexDirection="row" height={1}>
+                  {cells(r, barCols).map((c, i) => {
+                    const onRight = from + c.text.length / 2 > barCols / 2
+                    from += c.text.length
+                    return (
+                      <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
+                        <Box width={0} flexGrow={1} height={1} overflow="hidden">
+                          <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
+                        </Box>
+                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
+                          <Text color="black" backgroundColor="white" wrap="truncate-end">
+                            {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
+                          </Text>
+                        </Box>
+                      </Box>
+                    )
+                  })}
+                </Box>
                 {r.limits.length > 0 && (
-                  <Box key="limits" position="absolute" top={0} right={0} width={Math.min(40, barWidth)} height={1}>
+                  <Box key="limits" position="absolute" top={0} right={col(drawn - at.figuresEnd)} width={Math.max(1, col(at.limitsWidth))} height={1}>
                     <Box width={0} flexGrow={1} height={1} overflow="hidden">
                       <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                     </Box>
@@ -102,31 +123,16 @@ export const register: Register = on => {
                     </Box>
                   </Box>
                 )}
-                <Box position="absolute" top={1} left={0} right={0} flexDirection="row" height={1}>
-                  {cells(r, barWidth).map((c, i) => {
-                    const onRight = from + c.text.length / 2 > barWidth / 2
-                    from += c.text.length
-                    return (
-                      <Box key={`hit-${i}`} width={0} flexGrow={c.text.length} height={1}>
-                        <Box width={0} flexGrow={1} height={1} overflow="hidden">
-                          <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
-                        </Box>
-                        <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
-                          <Text color="black" backgroundColor="white" wrap="truncate-end">
-                            {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
-                          </Text>
-                        </Box>
-                      </Box>
-                    )
-                  })}
+                {/* The chevron is drawn in the picture; an empty button over it takes the press. */}
+                <Box position="absolute" top={0} right={0} height={1}>
+                  <Button key="toggle-legend" plain onPress={() => void update($, isExpanded, v => !v)}>
+                    {'\u00A0\u00A0'}
+                  </Button>
                 </Box>
               </Box>
-              <Box flexDirection="column" alignItems="center" marginLeft={1}>
+              <Box marginLeft={1}>
                 <Button key="close" plain dimColor onPress={() => void hide($)}>
                   ✕
-                </Button>
-                <Button key="toggle-legend" plain dimColor onPress={() => void update($, isExpanded, v => !v)}>
-                  {open ? CHEVRON.open : CHEVRON.closed}
                 </Button>
               </Box>
             </Box>
@@ -224,9 +230,9 @@ export const register: Register = on => {
 // estimate of a column's width; a drawing wider than its slot is scaled down to fit.
 const PX_PER_COLUMN = 8.4
 const FONT = 11
-const HEADER = 16
-const GAP = 6
-const BAR_HEIGHT = 20 // a multiple of the dots' 5 px step, so no row of dots is cut
+const ROW = 20 // the card's one line: the title, the bar, the figures and the chevron
+const BAR_HEIGHT = 15 // a multiple of the dots' 5 px step, so no row of dots is cut
+const CHAR_WIDTH = 6.1 // an estimate of a character's width at FONT, to leave the figures their room
 const TEXT = '#8b8b90'
 const FONTS = "-apple-system, 'SF Pro Text', system-ui, sans-serif"
 
@@ -258,13 +264,13 @@ export function pattern(r: Reading, s: Slice, id: string, y = 0) {
   return { def: `<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(${angles[Math.max(0, k) % angles.length]})"><rect width="5" height="5" fill="${darken(s.color, 0.6)}"/><rect width="2.5" height="5" fill="${s.color}"/></pattern>`, fill: `url(#${id})` }
 }
 
-// The bar alone, `width` by `height`, at (0, y).
-function barParts(r: Reading, width: number, y: number, height: number) {
+// The bar alone, `width` by `height`, at (left, y).
+function barParts(r: Reading, width: number, y: number, height: number, left = 0) {
   const defs: string[] = []
   const parts: string[] = []
   let at = 0
   cells(r, 1000).forEach((c, i) => {
-    const x = (at * width) / 1000
+    const x = left + (at * width) / 1000
     const w = (c.text.length * width) / 1000
     at += c.text.length
     const tip = `<title>${esc(`${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)}`)}</title>`
@@ -285,30 +291,59 @@ export function barSvg(r: Reading, height: number) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="${height}" viewBox="0 0 1800 ${height}"><defs>${defs}</defs>${parts}</svg>`
 }
 
-// The desktop card's header, bar and, when open, legend, `width` pixels wide: small grey text, a tall bar,
-// and legend swatches drawn with the bar's own patterns.
-export function cardSvg(r: Reading, width: number, open = false) {
+// The figures on the right of the line, as spans with the gap before each.
+function figures(r: Reading) {
   const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
   const heat = (v: number) => (v >= 0.9 ? '#e5534b' : v >= 0.7 ? ORANGE : undefined)
-  const span = (text: string, color?: string, gap = 0) =>
-    `<tspan${gap ? ` dx="${gap}"` : ''} fill="${color ?? TEXT}"${color ? ' font-weight="600"' : ''}>${esc(text)}</tspan>`
-  const right = [
-    span(`${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`),
-    span(`${r.percent}%`, heat(level), 12),
-    ...(r.limits.length > 0 ? [span('│', undefined, 12), span('limit', undefined, 8)] : []),
-    ...r.limits.map(l => span(`${LIMITS[l.kind].short} ${l.percent}%`, heat(l.percent / 100), 10)),
-  ].join('')
-  const base = HEADER - 4
-  const barY = HEADER + GAP
-  const { defs, parts } = barParts(r, width, barY, BAR_HEIGHT)
-  const legendSvg = open ? legendParts(r, width, barY + BAR_HEIGHT + 8) : { defs: '', parts: '', height: 0 }
-  const height = barY + BAR_HEIGHT + legendSvg.height
+  const context = [
+    { text: `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`, gap: 0 },
+    { text: `${r.percent}%`, gap: 12, color: heat(level) },
+  ]
+  const limits = r.limits.length === 0 ? [] : [
+    { text: '│', gap: 12 },
+    { text: 'limit', gap: 8 },
+    ...r.limits.map(l => ({ text: `${LIMITS[l.kind].short} ${l.percent}%`, gap: 10, color: heat(l.percent / 100) })),
+  ]
+  return { context, limits }
+}
+
+const spanWidth = (ss: { text: string; gap: number }[]) => ss.reduce((w, x) => w + x.gap + x.text.length * CHAR_WIDTH, 0)
+
+// Where each part of the line sits in a card `width` pixels wide: the title, then the bar in all the room
+// there is, then the figures, then the chevron at the end.
+export function layout(r: Reading, width: number) {
+  const { context, limits } = figures(r)
+  const chevronX = width - 12
+  const figuresEnd = chevronX - 12
+  const limitsWidth = spanWidth(limits)
+  const figuresWidth = spanWidth(context) + limitsWidth
+  const barX = 'Context'.length * CHAR_WIDTH + 14
+  const barWidth = Math.max(40, figuresEnd - figuresWidth - 16 - barX)
+  return { barX, barWidth, figuresEnd, limitsWidth, chevronX }
+}
+
+// The desktop card as one SVG `width` pixels wide: one line with the title, the bar, the figures and the
+// chevron, and when open the legend below, its swatches drawn with the bar's own patterns.
+export function cardSvg(r: Reading, width: number, open = false) {
+  const at = layout(r, width)
+  const { context, limits } = figures(r)
+  const spans = [...context, ...limits]
+    .map(x => `<tspan${x.gap ? ` dx="${x.gap}"` : ''} fill="${x.color ?? TEXT}"${x.color ? ' font-weight="600"' : ''}>${esc(x.text)}</tspan>`)
+    .join('')
+  const base = 14
+  const barY = (ROW - BAR_HEIGHT) / 2
+  const { defs, parts } = barParts(r, at.barWidth, barY, BAR_HEIGHT, at.barX)
+  const legendSvg = open ? legendParts(r, width, ROW + 10) : { defs: '', parts: '', height: 0 }
+  const height = ROW + legendSvg.height
+  // The chevron of the person's own drawing (a 24 grid, scaled to 12): down to open, up to fold.
+  const chevron = `<path transform="translate(${at.chevronX} 4) scale(0.5)" fill="none" stroke="${TEXT}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="${open ? 'm4 15l8-8l8 8' : 'm4 9l8 8l8-8'}"/>`
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONTS}" font-size="${FONT}">` +
     `<defs>${defs}${legendSvg.defs}</defs>` +
     `<text x="0" y="${base}" fill="${TEXT}">Context</text>` +
-    `<text x="${width}" y="${base}" text-anchor="end" xml:space="preserve">${right}</text>` +
     parts +
+    `<text x="${at.figuresEnd}" y="${base}" text-anchor="end" xml:space="preserve">${spans}</text>` +
+    chevron +
     legendSvg.parts +
     `</svg>`
   )

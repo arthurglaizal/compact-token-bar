@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barSvg, cardSvg, cells, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barSvg, cardSvg, cells, layout, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -94,6 +94,12 @@ describe('compact-token-bar', () => {
     expect(svg).toContain('viewBox="0 0 1800 14"')
     // The desktop card: small grey text over the bar, warm figures colored.
     const card = cardSvg(r, 700)
+    // One line: the bar sits between the title and the figures, the chevron at the end.
+    const at = layout(r, 700)
+    expect(at.barX).toBeGreaterThan(40)
+    expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 200)
+    expect(card).toContain('d="m4 9l8 8l8-8"') // the chevron, pointing down while folded
+    expect(cardSvg(r, 700, true)).toContain('d="m4 15l8-8l8 8"')
     expect(card).toContain('>Context</text>')
     expect(card).toContain('204k of 1M · compacts at 950k')
     expect(card).toContain('font-size="11"')
