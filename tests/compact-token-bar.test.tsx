@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barRowSvg, barSvg, cells, figures, icon, legendSvg, spanWidth, spansSvg, swatchGlyph, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barRowSvg, cells, figures, icon, legendSvg, spanWidth, spansSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -86,12 +86,10 @@ describe('compact-token-bar', () => {
     expect(ramp(0, 4)).toBe('#4c5568')
     expect(ramp(3, 4)).toBe('#868fa0')
     expect([0, 1, 2, 3, 4].map(k => zigzag(k, 5))).toEqual([0, 3, 1, 4, 2]) // every step of the ramp, once
-    // The vector bar: one tooltip per segment, a pattern per category, no script.
-    const svg = barSvg(r, 14)
-    expect(svg).toContain('<title>messages · 186k · 19%</title>')
+    // The vector bar: a pattern per category, no script.
+    const svg = barRowSvg(r, 1800)
     expect(svg.match(/<pattern /g)!.length).toBe(5) // four used rows and the buffer; free space is a line
     expect(svg).not.toMatch(/<script|on\w+=|transparent/)
-    expect(svg).toContain('viewBox="0 0 1800 14"')
     // The desktop row, in pieces laid out side by side: the title and the bar, then the figures.
     const row = barRowSvg(r, 500)
     expect(row).toContain('font-size="13">Context</text>') // the title, a little larger
@@ -113,16 +111,9 @@ describe('compact-token-bar', () => {
     const tiny = legendSvg(toReading({ ...BREAKDOWN, categories: [...BREAKDOWN.categories, { name: 'Memory files', tokens: 50, color: 'x', kind: 'used', isDeferred: false }] }), 700)
     expect(tiny).toContain('&lt;0.1%')
     expect(tiny).not.toMatch(/> ?<0\.1%/)
-    // The tooltips recall each segment's pattern in text.
-    expect(swatchGlyph(r, r.slices.find(s => s.name === 'messages')!)).toBe('⠑⠑⠑')
-    expect(swatchGlyph(r, r.slices.find(s => s.kind === 'free')!)).toBe('───')
-    expect(swatchGlyph(r, r.slices[0]!)).toBe('╱╱╱') // the first category's stripes lean like its pattern
     // A plan with only a weekly window shows that one alone.
     expect(figures(toReading(BREAKDOWN, [{ kind: 'seven_day', percentUsed: 4 }])).limits.map(x => x.text)).toEqual(['│', 'limit', '4%'])
     expect(figures(toReading(BREAKDOWN, [])).limits).toEqual([]) // none reported, no limits at all
-    // A legend swatch carries the same pattern as its segment in the bar.
-    const msgs = r.slices.find(s => s.name === 'messages')!
-    expect(swatchSvg(r, msgs)).toContain('<circle')
     expect(resets(undefined, 0)).toBe('')
     expect(resets(new Date(130 * 60_000).toISOString(), 0)).toBe(' · resets in 2 h 10')
     expect(resets(new Date(3 * 86_400_000 + 5 * 3_600_000).toISOString(), 0)).toBe(' · resets in 3 d 5 h')

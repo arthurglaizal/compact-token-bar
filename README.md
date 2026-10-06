@@ -99,19 +99,6 @@ Run the checks with `claude plugin validate .` and `claude plugin test .`.
 
 Built on [context-bar](https://github.com/hamzafer/claude-code-mods) by Hamza Zafar (MIT), redesigned around a quieter, single-line layout.
 
-## More AI workflow commands
-
-Small, portable commands for Claude Code, Codex, and any AI assistant.
-
-| Command | What it does |
-| --- | --- |
-| [Noob Command](https://github.com/arthurglaizal/noob-command) | Turns the last AI answer into something immediately understandable. |
-| [WaitGo](https://github.com/arthurglaizal/wait-go) | Batches your instructions, then executes only when you say go. |
-| [Session Recap](https://github.com/arthurglaizal/session-recap) | Recaps what you did in the current session and what to pick up next. |
-| [Ask Mode](https://github.com/arthurglaizal/ask-mode) | Lets you question your codebase without the assistant changing anything. |
-| [AI Handoff](https://github.com/arthurglaizal/ai-handoff) | Packages the current context so another AI can continue the work. |
-| [FYI](https://github.com/arthurglaizal/fyi-command) | Gives your assistant context without giving it a task. |
-
 ## Support
 
 If you find my work useful, you can [buy me a coffee](https://ko-fi.com/arturo_ux) ☕️

@@ -1,10 +1,9 @@
-// Compact Claude Token: what is filling my context window?
-//   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, the window as one
-//   stacked bar in a neutral slate ramp. On the desktop the header and the bar are one SVG (small text,
-//   striped categories, dotted messages); in a terminal, glyphs. Hovering a segment shows its label.
-//   The legend is folded by default: the chevron opens it. The header also shows the session and
-//   weekly limits; everything stays grey until a figure gets warm.
-//   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
+// Compact Token Bar: what is filling my context window?
+//   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, one quiet line: the title, the
+//   window as a stacked bar in a neutral slate ramp, the fill against the compaction point, a compact
+//   button, the session and weekly limits, then the details chevron and a close cross. Everything stays
+//   grey until a figure gets warm (orange from 70%, red from 90%). On the desktop the pieces are small
+//   SVGs (striped categories, dotted messages); in a terminal, glyphs. /compact-token-bar shows or hides it.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -352,12 +351,6 @@ function barParts(r: Reading, width: number, y: number, height: number, left = 0
   return { defs: defs.join(''), parts: parts.join('') }
 }
 
-// The bar as one SVG, `height` tall and drawn 1800 wide.
-export function barSvg(r: Reading, height: number) {
-  const { defs, parts } = barParts(r, 1800, 0, height)
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="${height}" viewBox="0 0 1800 ${height}"><defs>${defs}</defs>${parts}</svg>`
-}
-
 // How full the window is, against the real limit: the point where auto-compaction runs, or the whole
 // window when it is off. "371k of 967k", 38%.
 export function fill(r: Reading) {
@@ -426,18 +419,6 @@ export function legendAlt(r: Reading) {
   return r.slices.map(s => `${s.name} ${tokens(s.tokens)}`).join(', ')
 }
 
-// A reminder of a segment's pattern in text, for the tooltips (a picture does not show there): a short
-// strip of three glyphs at about the bar's own scale. Stripes at the bar's angle (rotate 45 leans like "/",
-// 135 like "\", 0 stands, 90 lies), dots for messages, a hatch for the buffer, a line for free space.
-export function swatchGlyph(r: Reading, s: Slice) {
-  if (s.kind === 'free') return '───'
-  if (s.kind === 'buffer') return '╱╱╱'
-  if (s.name === 'messages') return '⠑⠑⠑'
-  const k = r.slices.filter(x => x.kind === 'used' && x.name !== 'messages').indexOf(s)
-  return ['╱╱╱', '╲╲╲', '│││', '═══'][Math.max(0, k) % 4]!
-}
-
-
 const LEGEND_LINE = 21 // a swatch as tall as the bar, and a little air
 const CHAR = 6.4 // an estimate of a character's width at FONT, generous so items never overlap
 
@@ -473,14 +454,6 @@ function legendParts(r: Reading, width: number, top: number) {
     x += w + 18
   })
   return { defs: defs.join(''), parts: parts.join(''), height: 8 + (line + 1) * LEGEND_LINE - 6 }
-}
-
-// A swatch for the tooltips: a strip of the slice's own fill, at the bar's scale, as in the legend.
-export function swatchSvg(r: Reading, s: Slice) {
-  const { width, height } = SWATCH
-  const p = s.kind === 'free' ? { def: '', fill: '' } : pattern(r, s, `s${r.slices.indexOf(s)}`) // ids unique per slice, should two swatches ever share a page
-  const body = s.kind === 'free' ? `<rect x="0" y="${height / 2 - 0.5}" width="${width}" height="1" fill="${FREE}"/>` : `<rect width="${width}" height="${height}" fill="${p.fill}"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${p.def}</defs>${body}</svg>`
 }
 
 // The compact button: compacts the conversation as /compact does. Between turns only; the engine refuses it
