@@ -123,9 +123,8 @@ export const register: Register = on => {
                           <Text wrap="wrap">{'\u00A0'.repeat(200)}</Text>
                         </Box>
                         {/* The label in soft greys, after the segment's own pattern, the very drawing of the bar and
-                            the legend. A picture inside a hidden box is never drawn, so the box stays shown, parked
-                            far above the band where it is clipped, and the hover brings it down. */}
-                        <Box position="absolute" top={-60} {...(onRight ? { right: 0 } : { left: 0 })} hover={{ top: 1 }} flexDirection="row" alignItems="center">
+                            the legend. Revealed on hover, the app floats it above the line. */}
+                        <Box position="absolute" top={1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }} flexDirection="row" alignItems="center">
                           <Svg source={swatchSvg(r, c.slice)} alt=" " width={SWATCH.width} height={SWATCH.height} />
                           <Text wrap="truncate-end">
                             <Text color={TIP.name}>{` ${c.slice.name} `}</Text>
