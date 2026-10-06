@@ -1,8 +1,7 @@
 // Compact Claude Token: what is filling my context window?
 //   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, the window as one
 //   stacked bar. Colors are a neutral slate ramp and every category has its own texture (stripes,
-//   grid...), so the bar reads without color; messages are the dotted block, a notch lighter than
-//   the rest. Hovering a segment shows its label. The detailed legend is folded by default: the
+//   grid...), so the bar reads without color; messages are quiet dots on a grey ground. Hovering a segment shows its label. The detailed legend is folded by default: the
 //   chevron at the end of the bar opens it. Next to it, the session and weekly limits.
 //   /compact-token-bar shows or hides the bar, and the choice is kept across sessions.
 import { atom, read, update } from 'claude-code'
@@ -14,15 +13,15 @@ const MIN_WIDTH = 20 // narrower than this, the bar is not drawn
 const SPLIT = '   '
 // One slate ramp, dark to light, spread over the used categories; the texture keeps neighbours apart.
 const RAMP = ['#566178', '#a9b3c6'] as const
-// One texture per used category; messages, the row that grows, gets the dots and the lightest slate.
+// One texture per used category; messages, the row that grows, are quiet dots on a grey ground.
 const TEXTURES = ['▓', '▚', '▤', '▥', '▦', '▞', '▒']
-const MESSAGES = { color: '#e4e9f0', glyph: '⣿' } as const
+const MESSAGES = { color: '#9aa5b8', glyph: '⠪', background: '#3a4152' } as const
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '░' } as const
-// Plain text glyphs, drawn in the text's own color: a clock for the window that counts in hours,
-// a grid (a calendar) for the one that counts in days.
-const LIMITS = { five_hour: { icon: '◷', label: 'Limite de session (5 h)' }, seven_day: { icon: '▦', label: 'Limite hebdomadaire (7 jours)' } } as const
+// A stopwatch for the window that counts in hours, a calendar for the one that counts in days. The
+// U+FE0E selector asks for the text form of each, so it takes the text's own color, not an emoji's.
+const LIMITS = { five_hour: { icon: '\u23F1\uFE0E', label: 'Limite de session (5 h)' }, seven_day: { icon: '\u{1F5D3}\uFE0E', label: 'Limite hebdomadaire (7 jours)' } } as const
 const ORANGE = '#e08a3c'
 const CHEVRON = { closed: '⌄', open: '⌃' } as const // down to open, up to fold
 
@@ -113,7 +112,7 @@ export const register: Register = on => {
               at += c.text.length
               return (
                 <Box key={`seg-${i}`} width={0} flexGrow={c.text.length} height={1}>
-                  <Text color={c.color} wrap="truncate">{c.text.repeat(2)}</Text>
+                  <Text color={c.color} backgroundColor={c.slice.background} wrap="truncate">{c.text.repeat(2)}</Text>
                   <Box position="absolute" top={-1} {...(onRight ? { right: 0 } : { left: 0 })} display="none" hover={{ display: 'flex' }}>
                     <Text bold color="black" backgroundColor={c.kind === 'used' ? c.color : 'white'} wrap="truncate-end">
                       {` ${c.slice.name} · ${tokens(c.slice.tokens)} · ${share(c.slice.tokens, r.window)} `}
@@ -135,7 +134,7 @@ export const register: Register = on => {
                 {line.map((s, i) => (
                   <Text>
                     {i > 0 && <Text>{SPLIT}</Text>}
-                    <Text color={s.color}>{`${s.glyph} `}</Text>
+                    <Text color={s.color} backgroundColor={s.background}>{`${s.glyph} `}</Text>
                     <Text dimColor={s.kind !== 'used'}>{`${s.name} `}</Text>
                     <Text bold={s.kind === 'used'}>{tokens(s.tokens)}</Text>
                     {s.kind === 'used' && <Text dimColor>{` ${share(s.tokens, r.window)}`}</Text>}
@@ -181,6 +180,7 @@ export function toReading(b: {
     } else if (s.name === 'messages') {
       s.color = MESSAGES.color
       s.glyph = MESSAGES.glyph
+      s.background = MESSAGES.background
     } else {
       s.color = ramp(next, ramped)
       s.glyph = TEXTURES[next % TEXTURES.length]!

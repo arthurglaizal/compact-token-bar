@@ -72,7 +72,7 @@ describe('compact-token-bar', () => {
     // Every used row has its own texture too, so the bar reads without color.
     const glyphs = r.slices.filter(s => s.kind === 'used').map(s => s.glyph)
     expect(new Set(glyphs).size).toBe(glyphs.length)
-    expect(r.slices.find(s => s.name === 'messages')?.glyph).toBe('⣿') // the dotted block, no accent color
+    expect(r.slices.find(s => s.name === 'messages')?.glyph).toBe('⠪') // quiet dots, no accent color
 
     for (const width of [20, 47, 80, 200]) {
       const bar = cells(r, width)
@@ -104,8 +104,8 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: /204k sur 1M · compactage à 950k/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '20%' })).toBeDefined() // grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '◷ 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: '▦ 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: '\u23F1\uFE0E 42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '\u{1F5D3}\uFE0E 91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: /Limite de session \(5 h\) · 42% utilisé · remise à zéro dans 2 h/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^ ?.* · 5% utilisé/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded

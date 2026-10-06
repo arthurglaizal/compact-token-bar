@@ -3,6 +3,7 @@ export type Slice = {
   tokens: number
   color: string
   glyph: string // the texture the slice is drawn with, so the bar reads without color
+  background?: string // a ground behind the glyphs, for the slice that has one
   kind: 'used' | 'free' | 'buffer'
 }
 
