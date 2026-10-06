@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { barSvg, cardSvg, cells, layout, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
+import { barSvg, cardSvg, cells, icon, layout, swatchSvg, legend, ramp, resets, share, toReading, tokens, zigzag } from '../hooks/register'
 
 const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
 
@@ -98,7 +98,9 @@ describe('compact-token-bar', () => {
     const at = layout(r, 700)
     expect(at.barX).toBeGreaterThan(40)
     expect(at.barX + at.barWidth).toBeLessThan(at.figuresEnd - 100) // the figures keep their room
-    expect(card).not.toContain('<path') // the chevron is a button beside the picture, not drawn in it
+    expect(card).not.toContain('<path') // the buttons sit beside the picture, not in it
+    expect(icon('down')).toContain('d="m4 9l8 8l8-8"') // the person's chevron
+    expect(icon('close')).toContain('stroke="#8b8b90"') // the cross in the same grey
     expect(card).toContain('>Context</text>')
     expect(card).toContain('204k of 950k') // against the compaction point, the real limit
     expect(card).not.toContain('compacts at')
@@ -133,8 +135,8 @@ describe('compact-token-bar', () => {
     expect(await band.find({ type: 'Text', text: /^204k of 950k$/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '21%' })).toBeDefined() // 204k of 950k; grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: /messages · 186k · 19%/ })).toBeDefined() // the hover label of a segment
-    expect(await band.find({ type: 'Text', text: '5h 42%' })).toBeDefined() // session limit
-    expect(await band.find({ type: 'Text', text: 'week 91%' })).toBeDefined() // weekly limit
+    expect(await band.find({ type: 'Text', text: '42%' })).toBeDefined() // session limit
+    expect(await band.find({ type: 'Text', text: '91%' })).toBeDefined() // weekly limit
     expect(await band.find({ type: 'Text', text: /Session limit \(5 h\) · 42% used · resets in 2 h/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: /^ ?.* · 5% used/ })).toBeUndefined() // a gateway's spend limit is not shown
     expect(await band.find({ type: 'Text', text: /^messages $/ })).toBeUndefined() // the legend is folded

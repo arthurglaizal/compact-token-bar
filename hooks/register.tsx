@@ -21,8 +21,8 @@ const MESSAGES = { color: '#5d6370', glyph: '⠿', ground: '#26282c' } as const 
 const FREE = '#808080' // a mid grey thin line reads as empty on dark and light themes alike
 const BUFFER = '#808080'
 const GLYPH = { free: '─', buffer: '▃' } as const
-// Each window named by its span in words: icons did not say which was which.
-const LIMITS = { five_hour: { short: '5h', label: 'Session limit (5 h)' }, seven_day: { short: 'week', label: 'Weekly limit (7 days)' } } as const
+// The windows, session first then week; the line shows their figures alone and the hover names them.
+const LIMITS = { five_hour: { label: 'Session limit (5 h)' }, seven_day: { label: 'Weekly limit (7 days)' } } as const
 const ORANGE = '#e08a3c'
 const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
 
@@ -80,7 +80,7 @@ export const register: Register = on => {
     // bar as one SVG, with small text and real stripes and dots.
     const Svg = (e.surface === 'terminal' ? undefined : ($.ui.resolve(e) as any).Svg) as ((props: { source: string; alt: string }) => any) | undefined
     if (Svg) {
-      const drawn = Math.round((inner - 4) * PX_PER_COLUMN) // the chevron and the cross take the last four cells
+      const drawn = Math.round((inner - 6) * PX_PER_COLUMN) // the chevron and the cross take the last six cells
       const at = layout(r, drawn)
       const col = (px: number) => Math.round(px / PX_PER_COLUMN)
       const barCols = Math.max(1, col(at.barWidth))
@@ -123,17 +123,21 @@ export const register: Register = on => {
                   </Box>
                 )}
               </Box>
-              {/* Two buttons of one design: the same glyph weight, color and hover. */}
-              <Box marginLeft={1}>
-                <Button key="toggle-legend" plain dimColor onPress={() => void update($, isExpanded, v => !v)}>
-                  {open ? CHEVRON.open : CHEVRON.closed}
-                </Button>
-              </Box>
-              <Box marginLeft={1}>
-                <Button key="close" plain dimColor onPress={() => void hide($)}>
-                  ✕
-                </Button>
-              </Box>
+              {/* Two buttons of one design: a stroked icon in the text's grey, centered in its own box, and an
+                  empty button over the whole box, so the hover area sits right around the icon. */}
+              {[
+                { key: 'toggle-legend', icon: icon(open ? 'up' : 'down'), alt: open ? 'Fold the legend' : 'Open the legend', press: () => void update($, isExpanded, v => !v) },
+                { key: 'close', icon: icon('close'), alt: 'Close', press: () => void hide($) },
+              ].map(b => (
+                <Box key={`${b.key}-box`} marginLeft={1} width={2} height={1} justifyContent="center" alignItems="center">
+                  <Svg source={b.icon} alt={b.alt} />
+                  <Box position="absolute" top={0} left={0} width={2} height={1}>
+                    <Button key={b.key} plain onPress={b.press}>
+                      {'\u00A0\u00A0'}
+                    </Button>
+                  </Box>
+                </Box>
+              ))}
             </Box>
           </Box>
           {rest}
@@ -180,7 +184,7 @@ export const register: Register = on => {
                 const hot = l.percent >= 90 ? 'red' : l.percent >= 70 ? ORANGE : undefined
                 return (
                   <Box key={`limit-${l.kind}`} marginLeft={2}>
-                    <Text dimColor={!hot} color={hot}>{`${LIMITS[l.kind].short} ${l.percent}%`}</Text>
+                    <Text dimColor={!hot} color={hot}>{`${l.percent}%`}</Text>
                     <Box position="absolute" top={1} right={0} display="none" hover={{ display: 'flex' }}>
                       <Text bold color="black" backgroundColor="white" wrap="truncate-end">
                         {` ${LIMITS[l.kind].label} · ${l.percent}% used${resets(l.resetsAt, now)} `}
@@ -300,6 +304,13 @@ export function fill(r: Reading) {
   return { head: `${tokens(r.total)} of ${tokens(limit)}`, percent: Math.round(level * 100), level }
 }
 
+// The card's two button icons, 12 px, stroked in the text's grey: the chevron of the person's own drawing
+// (a 24 grid, scaled by half) pointing down to open and up to fold, and a cross of the same stroke.
+export function icon(kind: 'down' | 'up' | 'close') {
+  const d = { down: 'm4 9l8 8l8-8', up: 'm4 15l8-8l8 8', close: 'M6 6l12 12M18 6L6 18' }[kind]
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path d="${d}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+}
+
 // The figures on the right of the line, as spans with the gap before each.
 function figures(r: Reading) {
   const { head, percent, level } = fill(r)
@@ -311,7 +322,7 @@ function figures(r: Reading) {
   const limits = r.limits.length === 0 ? [] : [
     { text: '│', gap: 12 },
     { text: 'limit', gap: 8 },
-    ...r.limits.map(l => ({ text: `${LIMITS[l.kind].short} ${l.percent}%`, gap: 10, color: heat(l.percent / 100) })),
+    ...r.limits.map(l => ({ text: `${l.percent}%`, gap: 10, color: heat(l.percent / 100) })), // which is which: the hover says
   ]
   return { context, limits }
 }
