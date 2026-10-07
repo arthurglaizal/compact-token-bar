@@ -1,9 +1,9 @@
-// Compact Token Bar: what is filling my context window?
+// Quiet Token Bar: what is filling my context window?
 //   Fork of context-bar (hamzafer/claude-code-mods, MIT). Above the prompt, one quiet line: the title, the
 //   window as a stacked bar in a neutral slate ramp, the fill against the compaction point, a compact
 //   button, the session and weekly limits, then the details chevron and a close cross. Everything stays
 //   grey until a figure gets warm (orange from 70%, red from 90%). On the desktop the pieces are small
-//   SVGs (striped categories, dotted messages); in a terminal, glyphs. /compact-token-bar shows or hides it.
+//   SVGs (striped categories, dotted messages); in a terminal, glyphs. /quiet-token-bar shows or hides it.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -28,15 +28,15 @@ const TERMINAL_COMPACT = '≍' // two curves pinched toward each other: the term
 const CHEVRON = { closed: '∨', open: '∧' } as const // thin chevrons, the same weight as the close cross: down to open, up to fold
 
 // Held by the host, so the bar survives a hot reload of this file.
-const reading = atom({ plugin: 'compact-token-bar', key: 'reading' } as const, null as Reading | null)
-const isHidden = atom({ plugin: 'compact-token-bar', key: 'isHidden' } as const, false)
-const isExpanded = atom({ plugin: 'compact-token-bar', key: 'isExpanded' } as const, false)
-const isCompacting = atom({ plugin: 'compact-token-bar', key: 'isCompacting' } as const, false) // while the compact button's compaction runs
+const reading = atom({ plugin: 'quiet-token-bar', key: 'reading' } as const, null as Reading | null)
+const isHidden = atom({ plugin: 'quiet-token-bar', key: 'isHidden' } as const, false)
+const isExpanded = atom({ plugin: 'quiet-token-bar', key: 'isExpanded' } as const, false)
+const isCompacting = atom({ plugin: 'quiet-token-bar', key: 'isCompacting' } as const, false) // while the compact button's compaction runs
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
-    await $.command.register({ name: 'compact-token-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+    await $.command.register({ name: 'quiet-token-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
     const hidden = (await $.store.get('isHidden').catch(() => undefined)) === true
     await update($, isHidden, () => hidden)
     void refresh($).catch(() => {})
@@ -66,11 +66,11 @@ export const register: Register = on => {
     return r
   })
 
-  on('command.run', { command: 'compact-token-bar' }, async $ => {
+  on('command.run', { command: 'quiet-token-bar' }, async $ => {
     const hidden = await update($, isHidden, h => !h)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
-    return { text: hidden ? 'Context bar hidden. /compact-token-bar shows it again' : 'Context bar on' }
+    return { text: hidden ? 'Context bar hidden. /quiet-token-bar shows it again' : 'Context bar on' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -182,7 +182,7 @@ export const register: Register = on => {
                 {iconButton({ key: 'toggle-legend', icon: icon(open ? 'up' : 'down'), tip: open ? 'Hide details' : 'Show details', press: () => void update($, isExpanded, v => !v) })}
               </Box>
               <Box marginLeft={1}>
-                {iconButton({ key: 'close', icon: icon('close'), tip: 'Close (/compact-token-bar brings it back)', press: () => void hide($) })}
+                {iconButton({ key: 'close', icon: icon('close'), tip: 'Close (/quiet-token-bar brings it back)', press: () => void hide($) })}
               </Box>
             </Box>
             {open && <Svg source={legendSvg(r, drawn)} alt={legendAlt(r)} />}
@@ -475,7 +475,7 @@ async function compactNow($: EngineInterface) {
   }
 }
 
-// The close button: hides the bar as /compact-token-bar does, and keeps the choice.
+// The close button: hides the bar as /quiet-token-bar does, and keeps the choice.
 async function hide($: EngineInterface) {
   await update($, isHidden, () => true)
   await $.store.set('isHidden', true).catch(() => {})

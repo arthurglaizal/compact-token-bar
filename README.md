@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://github.com/arthurglaizal/compact-token-bar/releases/download/v1.0.1/compact-token-bar.gif" alt="Compact Token Bar demo: the context bar above the Claude Code prompt" width="100%">
+  <img src="https://github.com/arthurglaizal/quiet-token-bar/releases/download/v1.1.0/quiet-token-bar.gif" alt="Quiet Token Bar demo: the context bar above the Claude Code prompt" width="100%">
 </p>
 
-# Compact Token Bar
+# Quiet Token Bar
 
 > **Your context window in one quiet line, grey until it matters.**
 
@@ -41,7 +41,7 @@ Once installed, the bar appears above the prompt in every new session. It refres
 
 | Action | How |
 | --- | --- |
-| Show or hide the bar | `/compact-token-bar` |
+| Show or hide the bar | `/quiet-token-bar` |
 | Compact now | the compact button after the percentage |
 | See the details | the chevron |
 | See what a segment or a limit is | hover it |
@@ -58,29 +58,31 @@ Once installed, the bar appears above the prompt in every new session. It refres
 This repository is its own plugin marketplace.
 
 ```sh
-claude plugin marketplace add arthurglaizal/compact-token-bar
-claude plugin install compact-token-bar@arturo-mods
+claude plugin marketplace add arthurglaizal/quiet-token-bar
+claude plugin install quiet-token-bar@arturo-mods
 ```
 
 Or, in a Claude Code session:
 
 ```txt
-/plugin marketplace add arthurglaizal/compact-token-bar
-/plugin install compact-token-bar@arturo-mods
+/plugin marketplace add arthurglaizal/quiet-token-bar
+/plugin install quiet-token-bar@arturo-mods
 ```
 
 Start a new session and the bar appears above the prompt.
 
+This mod was called Compact Token Bar before 1.1.0. If you installed it under that name, remove it first with `claude plugin uninstall compact-token-bar@arturo-mods`, then run `claude plugin marketplace update arturo-mods` and install it as above.
+
 To try it without installing, clone the repository and run:
 
 ```sh
-claude --plugin-dir ./compact-token-bar
+claude --plugin-dir ./quiet-token-bar
 ```
 
 ## Repository structure
 
 ```txt
-compact-token-bar/
+quiet-token-bar/
 ├── README.md
 ├── LICENSE
 ├── .claude-plugin/
@@ -90,7 +92,7 @@ compact-token-bar/
 │   ├── hooks.json
 │   └── register.tsx
 ├── types/index.d.ts
-└── tests/compact-token-bar.test.tsx
+└── tests/quiet-token-bar.test.tsx
 ```
 
 Run the checks with `claude plugin validate .` and `claude plugin test .`.

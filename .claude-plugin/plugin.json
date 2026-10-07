@@ -1,14 +1,14 @@
 {
-  "name": "compact-token-bar",
-  "version": "1.0.1",
-  "description": "Your context window as one quiet line above the prompt: a patterned bar, the fill against the compaction point, a compact button and your session and weekly limits, grey until something gets warm. /compact-token-bar shows or hides it.",
+  "name": "quiet-token-bar",
+  "version": "1.1.0",
+  "description": "Your context window as one quiet line above the prompt: a patterned bar, the fill against the compaction point, a compact button and your session and weekly limits, grey until something gets warm. /quiet-token-bar shows or hides it.",
   "author": {
     "name": "Arthur Glaizal",
     "url": "https://github.com/arthurglaizal"
   },
   "types": "./types/index.d.ts",
-  "homepage": "https://github.com/arthurglaizal/compact-token-bar",
-  "repository": "https://github.com/arthurglaizal/compact-token-bar",
+  "homepage": "https://github.com/arthurglaizal/quiet-token-bar",
+  "repository": "https://github.com/arthurglaizal/quiet-token-bar",
   "license": "MIT",
   "keywords": [
     "context",

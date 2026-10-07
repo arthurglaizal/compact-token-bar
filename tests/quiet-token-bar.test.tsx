@@ -50,7 +50,7 @@ function engine(on: any, store: Record<string, unknown> = {}, limits?: unknown[]
 
 const settle = () => new Promise(done => (globalThis as any).setTimeout(done, 20)) // the first refresh runs in the background
 
-describe('compact-token-bar', () => {
+describe('quiet-token-bar', () => {
   test('helpers', () => {
     expect(tokens(3_400)).toBe('3.4k')
     expect(tokens(186_000)).toBe('186k')
@@ -128,7 +128,7 @@ describe('compact-token-bar', () => {
     await settle()
     expect(asked).toEqual([{ breakdown: 'summary' }]) // estimated locally, never the token-count API
 
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /^204k of 950k$/ })).toBeDefined()
     expect(await band.find({ type: 'Text', text: '21%' })).toBeDefined() // 204k of 950k; grey: no badge while the window is cool
     expect(await band.find({ type: 'Text', text: 'messages ' })).toBeDefined() // the hover label of a segment, on the one line
@@ -146,7 +146,7 @@ describe('compact-token-bar', () => {
     engine(on)
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'desktop', ...BAND } as any)
     const svg = await band.find({ type: 'Svg' })
     expect(svg).toBeDefined()
     expect(await band.find({ type: 'Text', text: 'messages ' })).toBeDefined() // the tooltip of a segment
@@ -166,7 +166,7 @@ describe('compact-token-bar', () => {
     on('command.run', (_$: any, e: any) => (ran.push(e), { text: 'Compacted' }))
     await $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'desktop', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'desktop', ...BAND } as any)
     await band.press({ key: 'compact' })
     expect(ran.map(e => e.command)).toEqual(['compact']) // as if typed: it shows in the transcript
     await band.unmount()
@@ -176,7 +176,7 @@ describe('compact-token-bar', () => {
     engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     await band.press({ key: 'toggle-legend' })
     expect(await band.find({ type: 'Text', text: '⠿ ' })).toBeDefined() // the legend's messages swatch
     expect(await band.find({ type: 'Text', text: /^186k$/ })).toBeDefined()
@@ -190,11 +190,11 @@ describe('compact-token-bar', () => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     await band.press({ key: 'close' })
     expect(store.isHidden).toBe(true)
     await band.unmount()
-    const again = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const again = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await again.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await again.unmount()
   })
@@ -215,7 +215,7 @@ describe('compact-token-bar', () => {
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
     await $.session.measure({ context: { tokens: 1, window: 1, percent: 0 }, rateLimits: [{ kind: 'seven_day', percentUsed: 12 }], changed: ['rateLimits'] } as any)
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: '12%' })).toBeDefined() // the weekly window alone
     expect(await band.find({ type: 'Text', text: /^42%$/ })).toBeUndefined() // no session window reported
     await band.unmount()
@@ -226,7 +226,7 @@ describe('compact-token-bar', () => {
     const { store } = engine(on, { limits: [{ kind: 'seven_day', percent: 7, resetsAt: later }, { kind: 'five_hour', percent: 3, resetsAt: '2000-01-01T00:00:00Z' }] }, []) // no response yet: no limits reported
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: '7%' })).toBeDefined() // the weekly window, still valid
     expect(await band.find({ type: 'Text', text: /^3%$/ })).toBeUndefined() // the session window, reset since
     expect(store.limits).toBeDefined()
@@ -243,19 +243,19 @@ describe('compact-token-bar', () => {
     expect(asked.length).toBe(2)
   })
 
-  test('/compact-token-bar hides and shows it, and remembers the choice', async ($, on) => {
+  test('/quiet-token-bar hides and shows it, and remembers the choice', async ($, on) => {
     const { store } = engine(on)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toMatch(/hidden/)
+    expect((await $.command.run({ command: 'quiet-token-bar', args: '' } as any)).text).toMatch(/hidden/)
     expect(store.isHidden).toBe(true)
-    let band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    let band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await band.unmount()
 
-    expect((await $.command.run({ command: 'compact-token-bar', args: '' } as any)).text).toBe('Context bar on')
+    expect((await $.command.run({ command: 'quiet-token-bar', args: '' } as any)).text).toBe('Context bar on')
     expect(store.isHidden).toBe(false)
-    band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeDefined()
     await band.unmount()
   })
@@ -264,7 +264,7 @@ describe('compact-token-bar', () => {
     engine(on, { isHidden: true })
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
     await settle()
-    const band = await $.ui.mount({ plugin: 'compact-token-bar', surface: 'terminal', ...BAND } as any)
+    const band = await $.ui.mount({ plugin: 'quiet-token-bar', surface: 'terminal', ...BAND } as any)
     expect(await band.find({ type: 'Text', text: /of 950k/ })).toBeUndefined()
     await band.unmount()
   })
