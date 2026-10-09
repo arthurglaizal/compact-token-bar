@@ -67,7 +67,7 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'quiet-token-bar' }, async $ => {
-    const hidden = await update($, isHidden, h => !h)
+    const hidden = await update($, isHidden, was => !was)
     await $.store.set('isHidden', hidden).catch(() => {})
     if (!hidden) await refresh($).catch(() => {})
     return { text: hidden ? 'Context bar hidden. /quiet-token-bar shows it again' : 'Context bar on' }
@@ -566,8 +566,8 @@ export function resets(at: string | undefined, now: number) {
   if (!(ms > 0)) return ''
   const min = Math.round(ms / 60_000)
   const d = Math.floor(min / 1440)
-  const h = Math.floor((min % 1440) / 60)
-  return ` · resets in ${d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
+  const hours = Math.floor((min % 1440) / 60)
+  return ` · resets in ${d > 0 ? `${d} d ${hours} h` : hours > 0 ? `${hours} h ${String(min % 60).padStart(2, '0')}` : `${min} min`}`
 }
 
 // The bar as runs of cells: each slice gets its share of `width`, a used one at least one cell.

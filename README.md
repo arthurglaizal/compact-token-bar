@@ -53,6 +53,13 @@ Once installed, the bar appears above the prompt in every new session. It refres
 - If Claude is answering, the compact button's `/compact` waits until the answer is done.
 - On desktop, widths are estimated from terminal columns, so spacing can shift slightly with the window size.
 
+## What it runs and keeps
+
+- **No network requests.** The figures come from Claude Code itself: the same breakdown `/context` draws, and the usage limits Claude Code already receives. Nothing is sent anywhere.
+- **One command, only on click.** The compact button runs `/compact`, exactly as if you had typed it, and only when you click it. The mod never compacts on its own.
+- **After a compaction**, it only re-reads the context to update the bar. It never changes, delays or blocks the compaction.
+- **Two values kept on your machine**, in Claude Code's plugin storage: whether you closed the bar, and the last limit percentages seen, so the bar can show them before the first response.
+
 ## Install in Claude Code
 
 This repository is its own plugin marketplace.
